@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
 
 import sys
+
+import numpy
 import torch
 
-from typing import List
+from torch import device
+from typing import List, Optional
+
+from environment import Environment
 
 
 class CollaborativeCompetition:
 
     def __init__(self) -> None:
         # device variable
-        self._device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self._device: device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         # environment variables
-        self._environment_graphics = None
-        self._environment_training = None
+        self._environment: Optional[Environment] = None
+        self._environment_graphics: Optional[bool] = None
+        self._environment_training: Optional[bool] = None
 
     def enable_training(self) -> None:
         """
@@ -35,7 +41,16 @@ class CollaborativeCompetition:
         self._environment_training = False
 
     def reset_environment(self):
-        pass
+        """
+        function to reset the environment
+        :return: None
+        """
+        if self._environment is None:
+            self._environment = Environment(enable_graphics=self._environment_graphics)
+            self._environment.reset(train_environment=self._environment_training)
+
+        if self._environment is not None:
+            self._environment.reset(train_environment=self._environment_training)
 
     def reset_agent(self):
         pass
