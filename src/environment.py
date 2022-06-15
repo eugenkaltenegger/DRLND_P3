@@ -27,7 +27,8 @@ class Environment:
         current_directory: str = os.path.dirname(__file__)
         absolut_file_path: str = os.path.join(current_directory, relative_file_path)
 
-        self._environment: UnityEnvironment = UnityEnvironment(file_name=absolut_file_path, no_graphics=not enable_graphics)
+        self._environment: UnityEnvironment = UnityEnvironment(file_name=absolut_file_path,
+                                                               no_graphics=not enable_graphics)
         self._default_brain: BrainParameters = self._environment.brains[self._environment.brain_names[0]]
 
         self._number_of_agents: Optional[int] = None
