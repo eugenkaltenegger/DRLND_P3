@@ -94,7 +94,7 @@ class AgentGroup:
             agent_action = action[agent_index]
             agent_reward = reward[agent_index]
 
-            # optimize critic
+            # --------------------------------------------- optimize critic --------------------------------------------
             agent.critic_optimizer.zero_grad()
 
             target_critic_input = torch.cat((next_state_full, target_action_full))
@@ -117,8 +117,9 @@ class AgentGroup:
             critic_loss.backward()
 
             agent.critic_optimizer.step()
+            # --------------------------------------------- optimize actor ---------------------------------------------
+            agent.critic_optimizer.step()
 
-            # optimize actor
             agent.actor_optimizer.zero_grad()
 
             q_input = [self._agents[i].actor(s) if i == agent_index else self._agents[i].actor(s).detach() for i, s in enumerate(state)]
@@ -128,6 +129,7 @@ class AgentGroup:
             actor_loss = -agent.critic(q_input).mean()
             actor_loss.backward()
             agent.actor_optimizer.step()
+            # ----------------------------------------------------------------------------------------------------------
 
     def update_target(self) -> None:
         for agent in self._agents:
