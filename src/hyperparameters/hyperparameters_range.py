@@ -19,8 +19,8 @@ class HyperparametersRange:
         hpr["episodes"] = [10000]        # maximum episodes
         hpr["steps"] = [1000]            # steps per episode
 
-        hpr["tau"] = [0.5]  # tau (0 < tau < 1)
-        hpr["discount"] = [0.9]  # discount factor
+        hpr["tau"] = [0.5]              # tau (0 < tau < 1)
+        hpr["discount"] = [0.9]         # discount factor
 
         # buffer parameters
         hpr["buffer_size"] = [100]       # replay buffer size

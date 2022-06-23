@@ -115,9 +115,9 @@ class CollaborativeCompetition:
                 if len(buffer) > self._hyperparameters["buffer_sample_size"] and step % self._hyperparameters["buffer_frequency"] == 0:
                     samples = buffer.sample(self._hyperparameters["buffer_sample_size"])
 
-                    # for sample in samples:
-                    #     self._agent_group.update(*sample)
-                    self._agent_group.update(*samples)
+                    for sample in samples:
+                        self._agent_group.update(*sample)
+                    # self._agent_group.update(*samples)
 
                     self._agent_group.update_target()
 
