@@ -4,10 +4,8 @@ import os
 import torch
 
 from torch import Tensor
-
 from typing import Tuple
 from typing import Optional
-
 from unityagents import BrainParameters
 from unityagents import UnityEnvironment
 
@@ -39,7 +37,7 @@ class Environment:
         function to reset environment
         :param brain: brain for which the environment is reset
         :param train_environment: parameter to set whether the environment is for training or for evaluation
-        :return: NoReturn
+        :return: None
         """
         brain = brain if brain is not None else self._default_brain
         info = self._environment.reset(train_mode=train_environment)[brain.brain_name]
@@ -58,7 +56,7 @@ class Environment:
         function to make a step in the environment
         :param action: action for the agent
         :param brain: brain for which will execute the actions
-        :return: state, reward, done following the execution of the action
+        :return: state (for all agents), reward (for all agents), done (for all agents) following the execution of the action
         """
         brain = brain if brain is not None else self._default_brain
 
@@ -68,7 +66,7 @@ class Environment:
 
         state: Tensor = torch.tensor(info.vector_observations, dtype=torch.float)
         reward: Tensor = torch.tensor(info.rewards, dtype=torch.float)
-        done: Tensor = torch.tensor(info.local_done, dtype=torch.float)
+        done: Tensor = torch.tensor(info.local_done, dtype=torch.bool)
 
         self._state = state
 
@@ -99,7 +97,7 @@ class Environment:
         :return: size of the state vector for the given brain
         """
         brain = brain if brain is not None else self._default_brain
-        return int(brain.vector_observation_space_size)
+        return int(brain.vector_observation_space_size * brain.num_stacked_vector_observations)
 
     def action_size(self, brain: BrainParameters = None) -> int:
         """

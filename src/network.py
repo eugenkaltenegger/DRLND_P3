@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 
+import numpy
 import typing
 
 from collections import OrderedDict
 from itertools import cycle
-
 from torch import Tensor
 from torch.nn import Linear
 from torch.nn import Module
 from torch.nn import Sequential
-
 from typing import Dict
 from typing import List
 
@@ -78,6 +77,12 @@ class Network(Module):
         network.load_state_dict(state_dict=checkpoint["state_dict"])
         return network
 
+    @staticmethod
+    def hidden_init(layer):
+        fan_in = layer.weight.data.size()[0]
+        lim = 1. / numpy.sqrt(fan_in)
+        return -lim, lim
+
     def _create_model_sequential(self) -> Sequential:
         input_size = self._state_size
         output_size = self._action_size
@@ -89,6 +94,11 @@ class Network(Module):
         nl_sizes += [(self._layers[i - 1], self._layers[i]) for i in range(1, len(self._layers))]
         nl_sizes += [(self._layers[-1], output_size)]
         nl_objects = [Linear(layer_size[0], layer_size[1]) for layer_size in nl_sizes]
+
+        for layer in nl_objects[:-1]:
+            layer.weight.data.uniform_(*self.hidden_init(layer))
+        nl_objects[-1].weight.data.uniform_(-1e-3, 1e-3)
+
         layers_dict: Dict[str, Module] = OrderedDict(zip(nl_names, nl_objects))
 
         # af stands for activation function
