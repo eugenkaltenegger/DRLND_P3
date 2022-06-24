@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import numpy
 import torch
 
 from agent import Agent
@@ -33,6 +33,9 @@ class AgentGroup:
 
     def create_agent(self, hyperparameters: OrderedDict) -> Agent:
         return Agent(device=self._device,
+                     noise_maximum=hyperparameters["noise_maximum"],
+                     noise_minimum=hyperparameters["noise_minimum"],
+                     noise_decay=hyperparameters["noise_decay"],
                      state_size=self._state_size,
                      action_size=self._action_size,
                      actor_layers=hyperparameters["actor_layers"],
@@ -52,18 +55,20 @@ class AgentGroup:
     def target_actors(self) -> List[Network]:
         return [agent.target_actor() for agent in self._agents]
 
-    def act(self, states: List[Tensor], noise: Optional[float] = None) -> Tensor:
+    def act(self, states: List[Tensor], noise: bool) -> Tensor:
         # TODO:
         # Creating a tensor from a list of numpy.ndarrays is extremely slow.
         # Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor
         actions = [agent.act(state=state, noise=noise).detach().numpy() for agent, state in zip(self._agents, states)]
+        actions = numpy.array(actions)
         return torch.tensor(actions, dtype=torch.float).to(device=self._device)
 
-    def target_act(self, states: List[Tensor], noise: Optional[float] = None) -> Tensor:
+    def target_act(self, states: List[Tensor], noise: bool) -> Tensor:
         # TODO:
         # Creating a tensor from a list of numpy.ndarrays is extremely slow.
         # Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor
         actions = [agent.target_act(state=state, noise=noise).detach().numpy() for agent, state in zip(self._agents, states)]
+        actions = numpy.array(actions)
         return torch.tensor(actions, dtype=torch.float).to(device=self._device)
 
     @staticmethod
@@ -118,8 +123,6 @@ class AgentGroup:
 
             agent.critic_optimizer.step()
             # --------------------------------------------- optimize actor ---------------------------------------------
-            agent.critic_optimizer.step()
-
             agent.actor_optimizer.zero_grad()
 
             q_input = [self._agents[i].actor(s) if i == agent_index else self._agents[i].actor(s).detach() for i, s in enumerate(state)]

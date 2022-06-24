@@ -28,9 +28,9 @@ class Hyperparameters:
         hp["buffer_sample_size"] = 4    # replay buffer sample size
 
         # action noise parameters
-        hp["noise"] = 1.00              # maximum noise (starting noise)
+        hp["noise_maximum"] = 1.00      # maximum noise (starting noise)
         hp["noise_minimum"] = 0.01      # minimum noise (ending noise)
-        hp["noise_reduction"] = 0.99    # noise reduction factor per steps
+        hp["noise_decay"] = 0.99        # noise reduction factor per steps
 
         # actor parameters
         hp["actor_layers"] = [128, 64]                          # actor layers
