@@ -89,10 +89,6 @@ class CollaborativeCompetition:
         self.reset_environment()
         self.reset_agent_group()
 
-        noise = self._hyperparameters["noise"]
-        noise_minimum = self._hyperparameters["noise_minimum"]
-        noise_reduction = self._hyperparameters["noise_reduction"]
-
         best_score = None
         best_episode = None
 
@@ -104,8 +100,7 @@ class CollaborativeCompetition:
             episode_rewards = []
 
             for step in range(1, self._hyperparameters["steps"] + 1):
-                action = self._agent_group.act(states=[s for s in state], noise=noise)
-                noise = max(noise * noise_reduction, noise_minimum)
+                action = self._agent_group.act(states=[s for s in state], noise=True)
 
                 next_state, reward, done = self._environment.step(action=action)
                 transition = (state, action, reward, done, next_state)

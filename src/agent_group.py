@@ -92,7 +92,7 @@ class AgentGroup:
         state_full = torch.cat([s for s in state])
         action_full = torch.cat([a for a in action])
         next_state_full = torch.cat([s for s in next_state])
-        target_action_full = torch.cat([a for a in self.target_act([s for s in state])])
+        target_action_full = torch.cat([a for a in self.target_act([s for s in state], noise=False)])
 
         for agent_index, agent in enumerate(self._agents):
             agent_state = state[agent_index]
