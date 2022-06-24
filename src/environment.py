@@ -4,7 +4,7 @@ import os
 import torch
 
 from torch import Tensor
-from typing import Tuple
+from typing import Tuple, List
 from typing import Optional
 from unityagents import BrainParameters
 from unityagents import UnityEnvironment
@@ -30,7 +30,7 @@ class Environment:
         self._default_brain: BrainParameters = self._environment.brains[self._environment.brain_names[0]]
 
         self._number_of_agents: Optional[int] = None
-        self._state: Optional[Tensor] = None
+        self._states: Optional[List[Tensor]] = None
 
     def reset(self, brain: BrainParameters = None, train_environment: bool = True) -> None:
         """
@@ -41,36 +41,39 @@ class Environment:
         """
         brain = brain if brain is not None else self._default_brain
         info = self._environment.reset(train_mode=train_environment)[brain.brain_name]
-        state = torch.tensor(info.vector_observations, dtype=torch.float)
-        self._state = state
+        states = [info.vector_observations[agent] for agent in range(len(info.agents))]
+        states = [torch.tensor(state, dtype=torch.float) for state in states]
+        self._number_of_agents = len(info.agents)
+        self._states = states
 
-    def state(self) -> Tensor:
+    def states(self) -> List[Tensor]:
         """
         function to get the state of the environment
         :return: the state of the environment
         """
-        return self._state
+        return self._states
 
-    def step(self, action: Tensor, brain: BrainParameters = None) -> Tuple[Tensor, Tensor, Tensor]:
+    def step(self, actions: [Tensor], brain: BrainParameters = None) -> Tuple[List[Tensor], List[Tensor], List[Tensor]]:
         """
         function to make a step in the environment
-        :param action: action for the agent
+        :param actions: action for the agent
         :param brain: brain for which will execute the actions
-        :return: state (for all agents), reward (for all agents), done (for all agents) following the execution of the action
+        :return: state (for all agents), rewards (for all agents), dones (for all agents) following the execution of the action
         """
         brain = brain if brain is not None else self._default_brain
 
-        action = action.tolist()
+        actions = [action_value for action in actions for action_value in action.tolist()]
 
-        info = self._environment.step(action)[brain.brain_name]
+        info = self._environment.step(actions)[brain.brain_name]
 
-        state: Tensor = torch.tensor(info.vector_observations, dtype=torch.float)
-        reward: Tensor = torch.tensor(info.rewards, dtype=torch.float)
-        done: Tensor = torch.tensor(info.local_done, dtype=torch.bool)
+        i_range = range(self._number_of_agents)
+        states: [Tensor] = [torch.tensor(info.vector_observations[i], dtype=torch.float) for i in i_range]
+        rewards: [Tensor] = [torch.tensor([info.rewards[i]], dtype=torch.float) for i in i_range]
+        dones: [Tensor] = [torch.tensor([info.local_done[i]], dtype=torch.bool) for i in i_range]
 
-        self._state = state
+        self._states = states
 
-        return state, reward, done
+        return states, rewards, dones
 
     def close(self) -> None:
         """
@@ -86,7 +89,7 @@ class Environment:
         :return: number of agents in the environment
         """
         if self._number_of_agents is None:
-            self._number_of_agents = len(self._environment.reset()[self._default_brain.brain_name].agents)
+            self.reset()
 
         return self._number_of_agents
 

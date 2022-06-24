@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 import logging
+from collections import OrderedDict
+
 import numpy
+import torch
 
 from matplotlib import pyplot
-
+from torch import Tensor
 from typing import List
-from typing import OrderedDict
 
 
 class Utils:
@@ -41,3 +43,7 @@ class Utils:
         """
         for key, value in hyperparameters.items():
             logging.info("\r{}: {}".format(key, value))
+
+    @staticmethod
+    def global_view(tensor_list: List[Tensor]) -> Tensor:
+        return torch.cat(tuple(tensor_list))

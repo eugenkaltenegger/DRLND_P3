@@ -4,16 +4,18 @@ import logging
 import sys
 from collections import OrderedDict
 
-import numpy
 import torch
 
 from torch import device
-from typing import List, Optional
+from torch import Tensor
+from typing import List
+from typing import Optional
 
 from agent_group import AgentGroup
 from buffer import Buffer
 from environment import Environment
 from hyperparameters.hyperparameters import Hyperparameters
+from utils import Utils
 
 
 class CollaborativeCompetition:
@@ -92,22 +94,31 @@ class CollaborativeCompetition:
         best_score = None
         best_episode = None
 
+        buffer = Buffer(self._hyperparameters["buffer_size"])
+
         for episode in range(1, self._hyperparameters["episodes"] + 1):
 
-            buffer = Buffer(self._hyperparameters["buffer_size"])
             self._environment.reset()
-            state = self._environment.state()
+            states: List[Tensor] = self._environment.states()
             episode_rewards = []
 
             for step in range(1, self._hyperparameters["steps"] + 1):
-                action = self._agent_group.act(states=[s for s in state], noise=True)
+                actions = self._agent_group.act(states=states, noise=True)
 
-                next_state, reward, done = self._environment.step(action=action)
-                transition = (state, action, reward, done, next_state)
+                next_states, rewards, dones = self._environment.step(actions=actions)
+
+                transition = (states, actions, rewards, dones, next_states)
+
+                g_state = Utils.global_view(states)
+                g_action = Utils.global_view(actions)
+                g_reward = Utils.global_view(rewards)
+                g_done = Utils.global_view(dones)
+                g_next_state = Utils.global_view(next_states)
+
                 buffer.push(transition=transition)
-                episode_rewards.append(reward.tolist())
+                episode_rewards.append(Utils.global_view(rewards).tolist())
 
-                if len(buffer) > self._hyperparameters["buffer_sample_size"] and step % self._hyperparameters["buffer_frequency"] == 0:
+                if len(buffer) > self._hyperparameters["buffer_sample_size"]:
                     samples = buffer.sample(self._hyperparameters["buffer_sample_size"])
 
                     for sample in samples:
@@ -116,9 +127,9 @@ class CollaborativeCompetition:
 
                     self._agent_group.update_target()
 
-                state = next_state
+                states = next_states
 
-                done = done.tolist()
+                done = Utils.global_view(states).tolist()
                 if any(done):
                     break
 

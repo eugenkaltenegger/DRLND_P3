@@ -55,13 +55,12 @@ class AgentGroup:
     def target_actors(self) -> List[Network]:
         return [agent.target_actor() for agent in self._agents]
 
-    def act(self, states: List[Tensor], noise: bool) -> Tensor:
+    def act(self, states: List[Tensor], noise: bool) -> [Tensor]:
         # TODO:
         # Creating a tensor from a list of numpy.ndarrays is extremely slow.
         # Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor
         actions = [agent.act(state=state, noise=noise).detach().numpy() for agent, state in zip(self._agents, states)]
-        actions = numpy.array(actions)
-        return torch.tensor(actions, dtype=torch.float).to(device=self._device)
+        return [torch.tensor(action, dtype=torch.float).to(device=self._device) for action in actions]
 
     def target_act(self, states: List[Tensor], noise: bool) -> Tensor:
         # TODO:
