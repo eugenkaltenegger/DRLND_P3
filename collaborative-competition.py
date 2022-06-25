@@ -55,13 +55,15 @@ class CollaborativeCompetition:
         self._environment_graphics = True
         self._environment_training = False
 
-    def reset_environment(self) -> None:
+    def reset_environment(self) -> List[Tensor]:
         if self._environment is None:
             self._environment = Environment(enable_graphics=self._environment_graphics)
             self._environment.reset(train_environment=self._environment_training)
 
         if self._environment is not None:
             self._environment.reset(train_environment=self._environment_training)
+
+        return self._environment.states()
 
     def reset_agent_group(self) -> None:
         if self._environment is None:
@@ -93,54 +95,52 @@ class CollaborativeCompetition:
 
         best_score = None
         best_episode = None
+        best_score_appearance = None
 
         buffer = Buffer(self._hyperparameters["buffer_size"])
 
         for episode in range(1, self._hyperparameters["episodes"] + 1):
 
-            self._environment.reset()
-            states: List[Tensor] = self._environment.states()
-            episode_rewards = []
+            states: List[Tensor] = self.reset_environment()
+            rewards_in_this_episode = []
 
             for step in range(1, self._hyperparameters["steps"] + 1):
-                actions = self._agent_group.act(states=states, noise=True)
+                local_action = self._agent_group.act(states=states, noise=True)
+                local_reward, local_done, local_next_state = self._environment.step(actions=local_action)
 
-                next_states, rewards, dones = self._environment.step(actions=actions)
+                global_state = Utils.local_to_global(states)
+                global_action = Utils.local_to_global(local_action)
+                global_reward = Utils.local_to_global(local_reward)
+                global_done = Utils.local_to_global(local_done)
+                global_next_state = Utils.local_to_global(local_next_state)
 
-                transition = (states, actions, rewards, dones, next_states)
-
-                g_state = Utils.global_view(states)
-                g_action = Utils.global_view(actions)
-                g_reward = Utils.global_view(rewards)
-                g_done = Utils.global_view(dones)
-                g_next_state = Utils.global_view(next_states)
-
-                buffer.push(transition=transition)
-                episode_rewards.append(Utils.global_view(rewards).tolist())
+                buffer.push(transition=(global_state, global_action, global_reward, global_done, global_next_state))
+                rewards_in_this_episode.append(global_reward.tolist())
 
                 if len(buffer) > self._hyperparameters["buffer_sample_size"]:
-                    samples = buffer.sample(self._hyperparameters["buffer_sample_size"])
+                    batch = buffer.batch(self._hyperparameters["buffer_sample_size"])
+                    self._agent_group.update(*batch)
 
-                    for sample in samples:
-                        self._agent_group.update(*sample)
-                    # self._agent_group.update(*samples)
+                states = local_next_state
 
-                    self._agent_group.update_target()
-
-                states = next_states
-
-                done = Utils.global_view(states).tolist()
-                if any(done):
+                if any(global_done):
+                    # print("Steps in episode: {:4d} (current buffer size: {:6d})".format(step, len(buffer)))
                     break
 
             # TODO start: the following lines are for debugging purposes only - use proper logger instead
-            score0 = sum([x[0] for x in episode_rewards])
-            score1 = sum([x[1] for x in episode_rewards])
+            score0 = sum([x[0] for x in rewards_in_this_episode])
+            score1 = sum([x[1] for x in rewards_in_this_episode])
             score = round(max(score0, score1) * 10000) / 10000
             if best_score is None or score > best_score:
                 best_score = score
                 best_episode = episode
-            print("episode {:4d}: score: {:2.2f} [best score: {:2.2f}, episode: {:4d} ]".format(episode, score, best_score, best_episode))
+                best_score_appearance = 1
+
+            if score == best_score:
+                best_score_appearance += 1
+
+            print("episode {:4d}: score: {:2.2f} [best score: {:2.2f}, episode: {:4d}, appearance: {:3d}]"
+                  .format(episode, score, best_score, best_episode, best_score_appearance))
             # TODO: end
 
     def tune(self) -> List[float]:

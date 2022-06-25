@@ -23,9 +23,9 @@ class Hyperparameters:
         hp["discount"] = 0.9            # discount factor
 
         # buffer parameters
-        hp["buffer_size"] = 100         # replay buffer size
-        hp["buffer_frequency"] = 2      # replay buffer learning frequency (number of steps)
-        hp["buffer_sample_size"] = 4    # replay buffer sample size
+        hp["buffer_size"] = 10000       # replay buffer size
+        hp["buffer_frequency"] = 16     # replay buffer learning frequency (number of steps)
+        hp["buffer_sample_size"] = 32   # replay buffer sample size
 
         # action noise parameters
         hp["noise_maximum"] = 1.00      # maximum noise (starting noise)

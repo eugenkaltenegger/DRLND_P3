@@ -67,13 +67,13 @@ class Environment:
         info = self._environment.step(actions)[brain.brain_name]
 
         i_range = range(self._number_of_agents)
-        states: [Tensor] = [torch.tensor(info.vector_observations[i], dtype=torch.float) for i in i_range]
         rewards: [Tensor] = [torch.tensor([info.rewards[i]], dtype=torch.float) for i in i_range]
         dones: [Tensor] = [torch.tensor([info.local_done[i]], dtype=torch.bool) for i in i_range]
+        states: [Tensor] = [torch.tensor(info.vector_observations[i], dtype=torch.float) for i in i_range]
 
         self._states = states
 
-        return states, rewards, dones
+        return rewards, dones, states
 
     def close(self) -> None:
         """

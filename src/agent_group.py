@@ -15,6 +15,8 @@ from torch import Tensor
 from typing import List
 from typing import Optional
 
+from utils import Utils
+
 
 class AgentGroup:
 
@@ -27,7 +29,8 @@ class AgentGroup:
         self._device: torch.device = device
         self._state_size = state_size
         self._action_size = action_size
-        self._agents: List[Agent] = [self.create_agent(hyperparameters=hyperparameters) for _ in range(agents)]
+        self._agents_number = agents
+        self._agents: List[Agent] = [self.create_agent(hyperparameters=hyperparameters) for _ in range(self._agents_number)]
         self._tau = hyperparameters["tau"]
         self._discount = hyperparameters["discount"]
 
@@ -74,35 +77,26 @@ class AgentGroup:
     def transpose_to_tensor(input_list):
         return list(map(lambda x: torch.tensor(x, dtype=torch.float), zip(*input_list)))
 
-    def update(self, state, action, reward, done, next_state):
+    def update(self, global_state, global_action, global_reward, global_done, global_next_state):
         """update the critics and actors of all the agents """
 
-        # state_all: Tensor(2,24)
-        # next_state_all: Tensor(2,24)
-        # state = state[0]
-        # state_full(Tensor: 48,) = torch.cat([s for s in state])
-        # action
-        # action_full(Tensor: 4,) = Tensor(2,2)
-        # target_action_full(Tensor: 4,) = agent_group.target_act([s for s in state_all])
-        # reward
-        # next_state = next_state_all[0]
-        # next_state_full(Tensor: 48,) = torch.cat([s for s in next_state])
+        local_state = Utils.global_to_local(global_state, agents=len(self._agents))
+        local_action = Utils.global_to_local(global_action, agents=len(self._agents))
+        local_reward = Utils.global_to_local(global_reward, agents=len(self._agents))
+        local_done = Utils.global_to_local(global_done, agents=len(self._agents))
+        local_next_state = Utils.global_to_local(global_next_state, agents=len(self._agents))
+        local_target_actions = [agent_action for agent_action in self.target_act(local_state, noise=False)]
+        local_numeric_done = [torch.tensor(agent_done, dtype=torch.float) for agent_done in local_done]
 
-        state_full = torch.cat([s for s in state])
-        action_full = torch.cat([a for a in action])
-        next_state_full = torch.cat([s for s in next_state])
-        target_action_full = torch.cat([a for a in self.target_act([s for s in state], noise=False)])
+        global_target_actions = Utils.local_to_global(local_target_actions, dim=1)
+        global_numeric_done = torch.tensor(global_done, dtype=torch.float)
 
         for agent_index, agent in enumerate(self._agents):
-            agent_state = state[agent_index]
-            agent_action = action[agent_index]
-            agent_reward = reward[agent_index]
-
             # --------------------------------------------- optimize critic --------------------------------------------
             agent.critic_optimizer.zero_grad()
 
-            target_critic_input = torch.cat((next_state_full, target_action_full))
-            critic_input = torch.cat((state_full, action_full))
+            target_critic_input = torch.cat((global_state, global_target_actions), dim=1)
+            critic_input = torch.cat((global_state, global_action), dim=1)
 
             with torch.no_grad():
                 q_next = agent.target_critic(target_critic_input)
@@ -110,10 +104,12 @@ class AgentGroup:
             q = agent.critic(critic_input)
 
             # TODO check if view is necessary
-            if done[agent_index]:
-                y = reward[agent_index].view(-1, 1)
-            else:
-                y = reward[agent_index].view(-1, 1) + self._discount * q_next
+
+            a = local_reward[agent_index]
+            b = self._discount * q_next
+            c = (1 - local_numeric_done[agent_index])
+            y = local_reward[agent_index].view(-1, 1) + self._discount * q_next * (1 - local_numeric_done[agent_index].view(-1, 1))
+
             y = y.detach()
 
             huber_loss = torch.nn.SmoothL1Loss()
@@ -124,14 +120,16 @@ class AgentGroup:
             # --------------------------------------------- optimize actor ---------------------------------------------
             agent.actor_optimizer.zero_grad()
 
-            q_input = [self._agents[i].actor(s) if i == agent_index else self._agents[i].actor(s).detach() for i, s in enumerate(state)]
-            q_input = torch.cat((q_input[0], q_input[1]))
-            q_input = torch.cat((state_full, q_input))
+            q_input = [self._agents[i].actor(s) if i == agent_index else self._agents[i].actor(s).detach() for i, s in enumerate(local_state)]
+            q_input = torch.cat((q_input[0], q_input[1]), dim=1)
+            q_input = torch.cat((global_state, q_input), dim=1)
 
             actor_loss = -agent.critic(q_input).mean()
             actor_loss.backward()
             agent.actor_optimizer.step()
             # ----------------------------------------------------------------------------------------------------------
+
+            self.update_target()
 
     def update_target(self) -> None:
         for agent in self._agents:

@@ -45,5 +45,9 @@ class Utils:
             logging.info("\r{}: {}".format(key, value))
 
     @staticmethod
-    def global_view(tensor_list: List[Tensor]) -> Tensor:
-        return torch.cat(tuple(tensor_list))
+    def local_to_global(local_view: List[Tensor], dim=0) -> Tensor:
+        return torch.cat(tuple(local_view), dim=dim)
+
+    @staticmethod
+    def global_to_local(global_view: Tensor, agents):
+        return [local_view.t() for local_view in torch.split(global_view.t(), int(global_view.shape[1]/agents), dim=0)]
