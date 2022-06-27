@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import numpy
 import torch
+import torch.nn.functional as functional
 
 from agent import Agent
 
@@ -59,23 +60,14 @@ class AgentGroup:
         return [agent.target_actor() for agent in self._agents]
 
     def act(self, states: List[Tensor], noise: bool) -> [Tensor]:
-        # TODO:
-        # Creating a tensor from a list of numpy.ndarrays is extremely slow.
-        # Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor
         actions = [agent.act(state=state, noise=noise).detach().numpy() for agent, state in zip(self._agents, states)]
+        actions = numpy.array(actions)
         return [torch.tensor(action, dtype=torch.float).to(device=self._device) for action in actions]
 
     def target_act(self, states: List[Tensor], noise: bool) -> Tensor:
-        # TODO:
-        # Creating a tensor from a list of numpy.ndarrays is extremely slow.
-        # Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor
         actions = [agent.target_act(state=state, noise=noise).detach().numpy() for agent, state in zip(self._agents, states)]
         actions = numpy.array(actions)
         return torch.tensor(actions, dtype=torch.float).to(device=self._device)
-
-    @staticmethod
-    def transpose_to_tensor(input_list):
-        return list(map(lambda x: torch.tensor(x, dtype=torch.float), zip(*input_list)))
 
     def update(self, global_state, global_action, global_reward, global_done, global_next_state):
         """update the critics and actors of all the agents """
@@ -85,46 +77,38 @@ class AgentGroup:
         local_reward = Utils.global_to_local(global_reward, agents=len(self._agents))
         local_done = Utils.global_to_local(global_done, agents=len(self._agents))
         local_next_state = Utils.global_to_local(global_next_state, agents=len(self._agents))
-        local_target_actions = [agent_action for agent_action in self.target_act(local_state, noise=False)]
-        local_numeric_done = [torch.tensor(agent_done, dtype=torch.float) for agent_done in local_done]
+        local_next_action = [agent_action.detach() for agent_action in self.act(local_state, noise=False)]
+        local_target_action = [agent_action for agent_action in self.target_act(local_state, noise=False)]
+        local_target_next_action = [agent_action for agent_action in self.target_act(local_state, noise=False)]
+        local_numeric_done = [torch.gt(agent_done, 0).int() for agent_done in local_done]
 
-        global_target_actions = Utils.local_to_global(local_target_actions, dim=1)
-        global_numeric_done = torch.tensor(global_done, dtype=torch.float)
+        global_target_action = Utils.local_to_global(local_target_action, dim=1)
+        global_target_next_action = Utils.local_to_global(local_target_next_action, dim=1)
+        global_numeric_done = torch.gt(global_done, 0).int()
 
         for agent_index, agent in enumerate(self._agents):
             # --------------------------------------------- optimize critic --------------------------------------------
-            agent.critic_optimizer.zero_grad()
+            target_critic_input = torch.cat((global_next_state, global_target_next_action), dim=1)
+            q_target_next = agent.target_critic(target_critic_input)
+            q_target = local_reward[agent_index] + self._discount * q_target_next * (1 - local_numeric_done[agent_index])
 
-            target_critic_input = torch.cat((global_state, global_target_actions), dim=1)
             critic_input = torch.cat((global_state, global_action), dim=1)
+            q_expected = agent.critic(critic_input)
 
-            with torch.no_grad():
-                q_next = agent.target_critic(target_critic_input)
+            critic_loss = functional.mse_loss(q_expected, q_target)
 
-            q = agent.critic(critic_input)
-
-            # TODO check if view is necessary
-
-            a = local_reward[agent_index]
-            b = self._discount * q_next
-            c = (1 - local_numeric_done[agent_index])
-            y = local_reward[agent_index].view(-1, 1) + self._discount * q_next * (1 - local_numeric_done[agent_index].view(-1, 1))
-
-            y = y.detach()
-
-            huber_loss = torch.nn.SmoothL1Loss()
-            critic_loss = huber_loss(q, y)
+            agent.critic_optimizer.zero_grad()
             critic_loss.backward()
-
             agent.critic_optimizer.step()
             # --------------------------------------------- optimize actor ---------------------------------------------
+            local_next_action_copy = local_next_action.copy()
+            local_next_action_copy[agent_index] = agent.actor(local_state[agent_index])
+            global_next_action = Utils.local_to_global(local_next_action_copy, dim=1)
+            critic_input = torch.cat((global_state, global_next_action), dim=1)
+
+            actor_loss = -agent.critic(critic_input).mean()
+
             agent.actor_optimizer.zero_grad()
-
-            q_input = [self._agents[i].actor(s) if i == agent_index else self._agents[i].actor(s).detach() for i, s in enumerate(local_state)]
-            q_input = torch.cat((q_input[0], q_input[1]), dim=1)
-            q_input = torch.cat((global_state, q_input), dim=1)
-
-            actor_loss = -agent.critic(q_input).mean()
             actor_loss.backward()
             agent.actor_optimizer.step()
             # ----------------------------------------------------------------------------------------------------------
