@@ -17,11 +17,11 @@ class Utils:
     """
     
     @staticmethod
-    def plot_scores(scores: List[float], show: bool = False, filename: str = None) -> None:
+    def plot_scores(scores: List[float], plot: bool = False, filename: str = None) -> None:
         """
         function to create a plot of the given scores
         :param scores: scores to plot
-        :param show: if true the plot will be shown
+        :param plot: if true the plot will be shown
         :param filename: if not None the plot will be stored to the given destination
         :return: None
         """
@@ -29,7 +29,7 @@ class Utils:
         pyplot.plot(numpy.arange(len(scores)), scores)
         pyplot.ylabel('Score')
         pyplot.xlabel('Episode')
-        if show:
+        if plot:
             pyplot.show()
         if filename is not None:
             pyplot.savefig(filename)
