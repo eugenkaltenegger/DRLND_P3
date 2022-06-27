@@ -2,7 +2,7 @@
 
 import logging
 
-from network import Network
+from src.network import Network
 
 
 class NetworkUtils:

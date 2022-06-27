@@ -3,20 +3,20 @@ import numpy
 import torch
 import torch.nn.functional as functional
 
-from agent import Agent
+from src.agent import Agent
 
 from collections import OrderedDict
 
-from network import Network
+from src.network import Network
 
-from network_utils import NetworkUtils
+from src.network_utils import NetworkUtils
 
 from torch import Tensor
 
 from typing import List
 from typing import Optional
 
-from utils import Utils
+from src.utils import Utils
 
 
 class AgentGroup:

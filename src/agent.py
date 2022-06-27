@@ -3,9 +3,9 @@
 import torch
 import torch.optim as optimizer
 
-from network import Network
-from network_utils import NetworkUtils
-from noise import Noise
+from src.network import Network
+from src.network_utils import NetworkUtils
+from src.noise import Noise
 from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer

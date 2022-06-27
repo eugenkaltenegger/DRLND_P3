@@ -11,11 +11,11 @@ from torch import Tensor
 from typing import List
 from typing import Optional
 
-from agent_group import AgentGroup
-from buffer import Buffer
-from environment import Environment
-from hyperparameters.hyperparameters import Hyperparameters
-from utils import Utils
+from src.agent_group import AgentGroup
+from src.buffer import Buffer
+from src.environment import Environment
+from src.hyperparameters.hyperparameters import Hyperparameters
+from src.utils import Utils
 
 
 class CollaborativeCompetition:
