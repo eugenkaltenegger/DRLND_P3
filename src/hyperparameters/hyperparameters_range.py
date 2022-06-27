@@ -16,16 +16,16 @@ class HyperparametersRange:
         """
         hpr = OrderedDict()
 
-        hpr["episodes"] = [10000]        # maximum episodes
+        hpr["episodes"] = [1000]         # maximum episodes
         hpr["steps"] = [1000]            # steps per episode
 
-        hpr["tau"] = [0.5]              # tau (0 < tau < 1)
-        hpr["discount"] = [0.9]         # discount factor
+        hpr["tau"] = [0.1]               # tau (0 < tau < 1)
+        hpr["discount"] = [0.9]          # discount factor
 
         # buffer parameters
-        hpr["buffer_size"] = [100]       # replay buffer size
-        hpr["buffer_frequency"] = [2]    # replay buffer learning frequency (number of steps)
-        hpr["buffer_sample_size"] = [4]  # replay buffer sample size
+        hpr["buffer_size"] = [1000]      # replay buffer size
+        hpr["buffer_frequency"] = [8]    # replay buffer learning frequency (number of steps)
+        hpr["buffer_sample_size"] = [16] # replay buffer sample size
 
         # action noise parameters
         hpr["noise_maximum"] = [1.00]    # maximum noise (starting noise)
