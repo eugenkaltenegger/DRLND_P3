@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy
+import torch
 import typing
 
 from collections import OrderedDict
@@ -26,12 +27,14 @@ class Network(Module):
                  action_size: int,
                  layers: List[int],
                  activation_function: Module,
-                 output_function: Module):
+                 output_function: Module,
+                 seed: int = 42):
         """
         initializer for model class
             this constructor requires the setup function afterwards
         """
         super(Network, self).__init__()
+        self.seed = torch.manual_seed(seed)
 
         self._state_size = state_size
         self._action_size = action_size
