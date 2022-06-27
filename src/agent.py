@@ -10,7 +10,6 @@ from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
 from typing import List
-from typing import Optional
 
 
 class Agent:
@@ -34,6 +33,7 @@ class Agent:
                  critic_learning_rate: float):
 
         self._device: torch.device = device
+        global_view_size = state_size * 2 + action_size * 2
 
         self._noise: Noise = Noise(action_size=action_size,
                                    scale_maximum=noise_maximum,
@@ -46,19 +46,19 @@ class Agent:
                                              activation_function=actor_activation_function,
                                              output_function=actor_output_function).to(device=self._device)
 
-        self.target_critic: Network = Network(state_size=state_size * 2 + action_size * 2,
-                                              action_size=1,
-                                              layers=critic_layers,
-                                              activation_function=critic_activation_function,
-                                              output_function=critic_output_function).to(device=self._device)
-
         self.actor: Network = Network(state_size=state_size,
                                       action_size=action_size,
                                       layers=actor_layers,
                                       activation_function=actor_activation_function,
                                       output_function=actor_output_function).to(device=self._device)
 
-        self.critic: Network = Network(state_size=state_size * 2 + action_size * 2,
+        self.target_critic: Network = Network(state_size=global_view_size,
+                                              action_size=1,
+                                              layers=critic_layers,
+                                              activation_function=critic_activation_function,
+                                              output_function=critic_output_function).to(device=self._device)
+
+        self.critic: Network = Network(state_size=global_view_size,
                                        action_size=1,
                                        layers=critic_layers,
                                        activation_function=critic_activation_function,
@@ -71,27 +71,19 @@ class Agent:
         NetworkUtils.hard_update(target_network=self.target_critic, source_network=self.critic)
 
     def act(self, state: Tensor, noise: bool) -> Tensor:
-        state = state.to(device=self._device)
-        action: Optional[Tensor] = None
+        state: Tensor = state.to(device=self._device)
+        action: Tensor = self.actor(state)
 
         if noise:
-            noise_tensor = self._noise.get_action_noise().to(device=self._device)
-            action = self.actor(state) + noise_tensor
-
-        if not noise:
-            action = self.actor(state)
+            action = action + self._noise.get_action_noise()
 
         return action.to(device=self._device)
 
     def target_act(self, state: Tensor, noise: bool) -> Tensor:
-        state = state.to(device=self._device)
-        action: Optional[Tensor] = None
+        state: Tensor = state.to(device=self._device)
+        action: Tensor = self.target_actor(state)
 
         if noise:
-            noise_tensor = self._noise.get_action_noise().to(device=self._device)
-            action = self.target_actor(state) + noise_tensor
-
-        if not noise:
-            action = self.target_actor(state)
+            action = action + self._noise.get_action_noise()
 
         return action.to(device=self._device)
