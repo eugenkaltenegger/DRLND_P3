@@ -22,8 +22,7 @@ class CollaborativeCompetition:
 
     def __init__(self) -> None:
         # device variable
-        self._device: device = torch.device("cpu")  # TODO: FOR DEVELOPMENT ONLY! USE LINE BELOW FOR FINAL VERSION
-        # self._device: device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self._device: device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         # hyperparameter variables
         self._hyperparameters: OrderedDict = Hyperparameters().get_dict()
@@ -84,7 +83,8 @@ class CollaborativeCompetition:
             Utils.plot_scores(scores=scores, plot=True)
 
         if mode == "tune":
-            score = self.tune()
+            scores = self.tune()
+            Utils.plot_scores(scores=scores, plot=True)
 
         if mode == "show":
             self.show()
@@ -107,14 +107,15 @@ class CollaborativeCompetition:
             rewards_in_this_episode = []
 
             for step in range(1, self._hyperparameters["steps"] + 1):
+                states = [state.to(device=self._device) for state in states]
                 local_action = self._agent_group.act(states=states, noise=True)
                 local_reward, local_done, local_next_state = self._environment.step(actions=local_action)
 
-                global_state = Utils.local_to_global(states)
-                global_action = Utils.local_to_global(local_action)
-                global_reward = Utils.local_to_global(local_reward)
-                global_done = Utils.local_to_global(local_done)
-                global_next_state = Utils.local_to_global(local_next_state)
+                global_state = Utils.local_to_global(states).to(device=self._device)
+                global_action = Utils.local_to_global(local_action).to(device=self._device)
+                global_reward = Utils.local_to_global(local_reward).to(device=self._device)
+                global_done = Utils.local_to_global(local_done).to(device=self._device)
+                global_next_state = Utils.local_to_global(local_next_state).to(device=self._device)
 
                 buffer.push(transition=(global_state, global_action, global_reward, global_done, global_next_state))
                 rewards_in_this_episode.append(global_reward.tolist())

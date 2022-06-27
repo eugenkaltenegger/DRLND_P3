@@ -71,16 +71,27 @@ class Agent:
         NetworkUtils.hard_update(target_network=self.target_critic, source_network=self.critic)
 
     def act(self, state: Tensor, noise: bool) -> Tensor:
+        state = state.to(device=self._device)
         action: Optional[Tensor] = None
 
         if noise:
-            action = self.actor(state) + self._noise.get_action_noise()
+            noise_tensor = self._noise.get_action_noise().to(device=self._device)
+            action = self.actor(state) + noise_tensor
 
         if not noise:
             action = self.actor(state)
 
         return action.to(device=self._device)
 
-    def target_act(self, state: Tensor, noise: Optional[float]) -> Tensor:
-        action = self.target_actor(state) if noise is None else self.actor(state) + noise * self._noise.get_action_noise()
+    def target_act(self, state: Tensor, noise: bool) -> Tensor:
+        state = state.to(device=self._device)
+        action: Optional[Tensor] = None
+
+        if noise:
+            noise_tensor = self._noise.get_action_noise().to(device=self._device)
+            action = self.target_actor(state) + noise_tensor
+
+        if not noise:
+            action = self.target_actor(state)
+
         return action.to(device=self._device)

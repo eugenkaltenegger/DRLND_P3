@@ -60,12 +60,12 @@ class AgentGroup:
         return [agent.target_actor() for agent in self._agents]
 
     def act(self, states: List[Tensor], noise: bool) -> [Tensor]:
-        actions = [agent.act(state=state, noise=noise).detach().numpy() for agent, state in zip(self._agents, states)]
+        actions = [agent.act(state=state, noise=noise).detach().cpu().numpy() for agent, state in zip(self._agents, states)]
         actions = numpy.array(actions)
         return [torch.tensor(action, dtype=torch.float).to(device=self._device) for action in actions]
 
     def target_act(self, states: List[Tensor], noise: bool) -> Tensor:
-        actions = [agent.target_act(state=state, noise=noise).detach().numpy() for agent, state in zip(self._agents, states)]
+        actions = [agent.target_act(state=state, noise=noise).detach().cpu().numpy() for agent, state in zip(self._agents, states)]
         actions = numpy.array(actions)
         return torch.tensor(actions, dtype=torch.float).to(device=self._device)
 
