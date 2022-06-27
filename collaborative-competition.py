@@ -80,7 +80,8 @@ class CollaborativeCompetition:
             logging.error("\rINVALID OPERATION MODE {} (ALLOWED: train, tune and show)".format(mode))
 
         if mode == "train":
-            score = self.train()
+            scores = self.train()
+            Utils.plot_scores(scores=scores, plot=True)
 
         if mode == "tune":
             score = self.tune()
@@ -95,10 +96,11 @@ class CollaborativeCompetition:
 
         best_score = None
         best_episode = None
-        best_score_appearance = None
+        best_score_occurance = None
 
         buffer = Buffer(self._hyperparameters["buffer_size"])
 
+        scores = []
         for episode in range(1, self._hyperparameters["episodes"] + 1):
 
             states: List[Tensor] = self.reset_environment()
@@ -131,17 +133,19 @@ class CollaborativeCompetition:
             score0 = sum([x[0] for x in rewards_in_this_episode])
             score1 = sum([x[1] for x in rewards_in_this_episode])
             score = round(max(score0, score1) * 10000) / 10000
+            scores.append(score)
             if best_score is None or score > best_score:
                 best_score = score
                 best_episode = episode
-                best_score_appearance = 1
+                best_score_occurance = 1
 
             if score == best_score:
-                best_score_appearance += 1
+                best_score_occurance += 1
 
             print("episode {:4d}: score: {:2.2f} [best score: {:2.2f}, episode: {:4d}, appearance: {:3d}]"
-                  .format(episode, score, best_score, best_episode, best_score_appearance))
+                  .format(episode, score, best_score, best_episode, best_score_occurance))
             # TODO: end
+        return scores
 
     def tune(self) -> List[float]:
         pass
