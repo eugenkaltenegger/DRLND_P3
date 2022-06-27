@@ -96,7 +96,7 @@ class CollaborativeCompetition:
 
         best_score = None
         best_episode = None
-        best_score_occurance = None
+        best_score_occurrence = None
 
         buffer = Buffer(self._hyperparameters["buffer_size"])
 
@@ -137,13 +137,13 @@ class CollaborativeCompetition:
             if best_score is None or score > best_score:
                 best_score = score
                 best_episode = episode
-                best_score_occurance = 1
+                best_score_occurrence = 1
 
             if score == best_score:
-                best_score_occurance += 1
+                best_score_occurrence += 1
 
-            print("episode {:4d}: score: {:2.2f} [best score: {:2.2f}, episode: {:4d}, appearance: {:3d}]"
-                  .format(episode, score, best_score, best_episode, best_score_occurance))
+            print("episode {:4d}: score: {:2.2f} [best score: {:2.2f}, episode: {:4d}, occurrence: {:3d}]"
+                  .format(episode, score, best_score, best_episode, best_score_occurrence))
             # TODO: end
         return scores
 
