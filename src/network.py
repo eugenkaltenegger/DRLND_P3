@@ -28,7 +28,7 @@ class Network(Module):
                  layers: List[int],
                  activation_function: Module,
                  output_function: Module,
-                 seed: int = 42):
+                 seed: int = 0):
         """
         initializer for model class
             this constructor requires the setup function afterwards
