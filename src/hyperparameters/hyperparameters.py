@@ -32,7 +32,7 @@ class Hyperparameters:
         # action noise parameters
         hp["noise_maximum"] = 1.00                              # maximum noise (starting noise)
         hp["noise_minimum"] = 0.10                              # minimum noise (ending noise)
-        hp["noise_decay"] = 0.999                               # noise reduction factor per steps
+        hp["noise_decay"] = 0.9999                              # noise reduction factor per steps
 
         # network parameters
         hp["tau"] = 0.001                                       # tau (0 < tau < 1)
