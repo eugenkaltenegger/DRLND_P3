@@ -9,8 +9,6 @@ from src.agent import Agent
 from src.network_utils import NetworkUtils
 from src.utils import Utils
 
-DEBUGGING = False
-
 
 class AgentGroup:
 
@@ -64,12 +62,12 @@ class AgentGroup:
         for agent_index, agent in enumerate(self._agents):
             # --------------------------------------------- optimize critic --------------------------------------------
             local_next_target_actions = [agent.target_act(local_next_state, add_noise=False) for local_next_state in local_next_states]
-            # local_next_target_actions = [local_next_target_action if agent_index == index else local_next_target_action.detach() for index, local_next_target_action in enumerate(local_next_target_actions)]
             global_next_target_action = Utils.local_to_global(local_next_target_actions, dim=1)
 
             target_critic_input = torch.cat((global_next_state, global_next_target_action), dim=1)
 
-            q_next = agent.target_critic(target_critic_input)
+            with torch.no_grad():
+                q_next = agent.target_critic(target_critic_input)
 
             y = local_rewards[agent_index] + self._discount * q_next * (1 - local_numeric_dones[agent_index]).to(self._device)
 
@@ -79,21 +77,14 @@ class AgentGroup:
             loss_function = torch.nn.MSELoss()
             critic_loss = loss_function(q, y)
 
-            if DEBUGGING:
-                print("agent index: {} - critic loss: {}".format(agent_index, critic_loss))
-
             agent.critic_optimizer.zero_grad()
             critic_loss.backward()
             agent.critic_optimizer.step()
             # --------------------------------------------- optimize actor ---------------------------------------------
             q_inputs = [agent.act(local_state, add_noise=False) for local_state in local_states]
-            # q_inputs = [q_input if agent_index == index else q_input.detach() for index, q_input in enumerate(q_inputs)]
             q_input = Utils.local_to_global(q_inputs, dim=1)
             critic_input = torch.cat((global_state, q_input), dim=1)
             actor_loss = -agent.critic(critic_input).mean()
-
-            if DEBUGGING:
-                print("agent index: {} - actor loss: {}".format(agent_index, actor_loss))
 
             agent.actor_optimizer.zero_grad()
             actor_loss.backward()

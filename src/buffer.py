@@ -27,7 +27,6 @@ class Buffer:
         tensor_list = [[[] for _ in range(j_range)] for _ in range(i_range)]
         for i in range(i_range):
             for j in range(j_range):
-                # TODO: check typehint below
                 tensor_list[i][j] = torch.stack([sample[i][j] for sample in samples])
 
         return tuple(tensor_list)

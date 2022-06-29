@@ -83,11 +83,11 @@ class CollaborativeCompetition:
 
         if mode == "train":
             scores, means, _ = self.train()
-            Utils.plot_scores(scores=scores, means=means, show=True)
+            Utils.plot_scores(scores=scores, means=means, show=True, filename="training.png")
 
         if mode == "tune":
             scores, means, _ = self.tune()
-            Utils.plot_scores(scores=scores, means=means, show=True)
+            Utils.plot_scores(scores=scores, means=means, show=True, filename="tuning.png")
 
         if mode == "show":
             self.show()

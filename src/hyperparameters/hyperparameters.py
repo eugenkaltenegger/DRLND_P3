@@ -24,10 +24,10 @@ class Hyperparameters:
         hp["discount"] = 0.99                                   # discount factor
 
         # buffer parameters
-        hp["buffer_size"] = 1000                                # replay buffer size
-        hp["buffer_frequency"] = 8                              # replay buffer learning frequency (number of steps)
-        hp["buffer_sample_size"] = 128                          # replay buffer sample size (batch size)
-        hp["buffer_sample_iterations"] = 4                      # replay buffer sample learning iterations
+        hp["buffer_size"] = 100000                              # replay buffer size
+        hp["buffer_frequency"] = 1                              # replay buffer learning frequency (number of steps)
+        hp["buffer_sample_size"] = 256                          # replay buffer sample size (batch size)
+        hp["buffer_sample_iterations"] = 1                      # replay buffer sample learning iterations
 
         # action noise parameters
         hp["noise_maximum"] = 1.00                              # maximum noise (starting noise)
@@ -40,7 +40,7 @@ class Hyperparameters:
         # actor parameters
         hp["actor_layers"] = [256, 128]                         # actor layers
         hp["actor_activation_function"] = torch.nn.ReLU         # actor activation function
-        hp["actor_output_function"] = None                      # actor output function
+        hp["actor_output_function"] = torch.nn.Tanh             # actor output function
         hp["actor_optimizer"] = torch.optim.Adam                # actor optimizer
         hp["actor_optimizer_learning_rate"] = 0.0001            # actor optimizer learning rate
 
