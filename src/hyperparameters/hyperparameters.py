@@ -24,9 +24,9 @@ class Hyperparameters:
         hp["discount"] = 0.99                                   # discount factor
 
         # buffer parameters
-        hp["buffer_size"] = 10000                               # replay buffer size
+        hp["buffer_size"] = 1000                                # replay buffer size
         hp["buffer_frequency"] = 8                              # replay buffer learning frequency (number of steps)
-        hp["buffer_sample_size"] = 256                          # replay buffer sample size (batch size)
+        hp["buffer_sample_size"] = 128                          # replay buffer sample size (batch size)
         hp["buffer_sample_iterations"] = 4                      # replay buffer sample learning iterations
 
         # action noise parameters
@@ -49,7 +49,7 @@ class Hyperparameters:
         hp["critic_activation_function"] = torch.nn.ReLU        # critic activation function
         hp["critic_output_function"] = None                     # critic output function
         hp["critic_optimizer"] = torch.optim.Adam               # critic optimizer
-        hp["critic_optimizer_learning_rate"] = 0.001            # critic optimizer learning rate
+        hp["critic_optimizer_learning_rate"] = 0.0001           # critic optimizer learning rate
 
         self.hp = hp
 
