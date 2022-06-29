@@ -33,6 +33,7 @@ class Agent:
                  critic_learning_rate: float):
 
         self._device: torch.device = device
+
         global_view_size = state_size * 2 + action_size * 2
 
         self._noise: Noise = Noise(action_size=action_size,
@@ -70,20 +71,33 @@ class Agent:
         NetworkUtils.hard_update(target_network=self.target_actor, source_network=self.actor)
         NetworkUtils.hard_update(target_network=self.target_critic, source_network=self.critic)
 
-    def act(self, state: Tensor, noise: bool) -> Tensor:
+    def act(self, state: Tensor, add_noise: bool = True) -> Tensor:
+        return self._apply_network(network=self.target_actor,
+                                   state=state,
+                                   add_noise=add_noise,
+                                   output_min=-1.0,
+                                   output_max=+1.0)
+
+    def target_act(self, state: Tensor, add_noise: bool = True) -> Tensor:
+        return self._apply_network(network=self.target_actor,
+                                   state=state,
+                                   add_noise=add_noise,
+                                   output_min=-1.0,
+                                   output_max=+1.0)
+
+    def _apply_network(self,
+                       network: Network,
+                       state: Tensor,
+                       add_noise: bool,
+                       output_min: float,
+                       output_max: float) -> Tensor:
         state: Tensor = state.to(device=self._device)
-        action: Tensor = self.actor(state)
+        action: Tensor = network(state)
 
-        if noise:
-            action = action + self._noise.get_action_noise()
+        if add_noise:
+            noise_tensor = self._noise.get_action_noise_scale().to(device=self._device)
+            action = action + noise_tensor
 
-        return action.to(device=self._device)
-
-    def target_act(self, state: Tensor, noise: bool) -> Tensor:
-        state: Tensor = state.to(device=self._device)
-        action: Tensor = self.target_actor(state)
-
-        if noise:
-            action = action + self._noise.get_action_noise()
+        action = torch.clip(action, output_min, output_max)
 
         return action.to(device=self._device)
