@@ -9,8 +9,6 @@ from src.agent import Agent
 from src.network_utils import NetworkUtils
 from src.utils import Utils
 
-DEBUGGING = False
-
 
 class AgentGroup:
 
@@ -52,14 +50,14 @@ class AgentGroup:
     def target_act(self, states: List[Tensor], add_noise: bool) -> List[Tensor]:
         return [agent.target_act(state=state, add_noise=add_noise) for agent, state in zip(self._agents, states)]
 
-    def update(self, global_state, global_action, global_reward, global_done, global_next_state):
+    def update(self, local_states, local_actions, local_rewards, local_dones, local_next_states):
         """update the critics and actors of all the agents """
 
-        local_states = Utils.global_to_local(global_state, agents=len(self._agents))
-        local_rewards = Utils.global_to_local(global_reward, agents=len(self._agents))
-        local_dones = Utils.global_to_local(global_done, agents=len(self._agents))
-        local_next_states = Utils.global_to_local(global_next_state, agents=len(self._agents))
-        local_numeric_dones = [torch.gt(agent_done, 0).int() for agent_done in local_dones]
+        local_numeric_dones = [torch.gt(local_done, 0).int().to(device=self._device) for local_done in local_dones]
+
+        global_state = torch.cat(local_states, dim=1).detach().to(device=self._device)
+        global_action = torch.cat(local_actions, dim=1).detach().to(device=self._device)
+        global_next_state = torch.cat(local_next_states, dim=1).detach().to(device=self._device)
 
         for agent_index, agent in enumerate(self._agents):
             # --------------------------------------------- optimize critic --------------------------------------------
@@ -68,32 +66,25 @@ class AgentGroup:
 
             target_critic_input = torch.cat((global_next_state, global_next_target_action), dim=1)
 
-            # with torch.no_grad():
-            q_next = agent.target_critic(target_critic_input)
+            with torch.no_grad():
+                q_next = agent.target_critic(target_critic_input)
 
-            # y = global_reward + self._discount * q_next * (1 - global_numeric_dones).to(self._device)
             y = local_rewards[agent_index] + self._discount * q_next * (1 - local_numeric_dones[agent_index]).to(self._device)
 
-            critic_input = torch.cat((global_state, global_action.detach()), dim=1).to(self._device)
+            critic_input = torch.cat((global_state, global_action), dim=1).to(self._device)
             q = agent.critic(critic_input)
 
             loss_function = torch.nn.MSELoss()
             critic_loss = loss_function(q, y)
 
-            if DEBUGGING:
-                print("actor index: {} - critic loss: {}".format(agent_index, critic_loss))
-
             agent.critic_optimizer.zero_grad()
             critic_loss.backward()
             agent.critic_optimizer.step()
             # --------------------------------------------- optimize actor ---------------------------------------------
-            q_input = [agent.act(local_state, add_noise=False) for local_state in local_states]
-            q_input = Utils.local_to_global(q_input, dim=1)
+            q_inputs = [agent.act(local_state, add_noise=False) for local_state in local_states]
+            q_input = Utils.local_to_global(q_inputs, dim=1)
             critic_input = torch.cat((global_state, q_input), dim=1)
             actor_loss = -agent.critic(critic_input).mean()
-
-            if DEBUGGING:
-                print("actor index: {} - actor loss: {}".format(agent_index, actor_loss))
 
             agent.actor_optimizer.zero_grad()
             actor_loss.backward()
