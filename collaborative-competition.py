@@ -111,22 +111,21 @@ class CollaborativeCompetition:
         means = []
         for episode in range(1, self._hyperparameters["episodes"] + 1):
 
-            local_state: List[Tensor] = self.reset_environment()
+            local_states: List[Tensor] = self.reset_environment()
             rewards_in_this_episode = []
 
             for step in range(1, self._hyperparameters["steps"] + 1):
-                local_state = [state.to(device=self._device) for state in local_state]
-                local_action = self._agent_group.act(states=local_state, add_noise=True, )
-                local_reward, local_done, local_next_state = self._environment.step(actions=local_action)
+                local_states = [local_state.to(device=self._device) for local_state in local_states]
+                local_actions = self._agent_group.act(states=local_states, add_noise=True, )
+                local_rewards, local_dones, local_next_states = self._environment.step(actions=local_actions)
 
-                global_state = Utils.local_to_global(local_state).to(device=self._device)
-                global_action = Utils.local_to_global(local_action).to(device=self._device)
-                global_reward = Utils.local_to_global(local_reward).to(device=self._device)
-                global_done = Utils.local_to_global(local_done).to(device=self._device)
-                global_next_state = Utils.local_to_global(local_next_state).to(device=self._device)
+                local_actions = [local_action.to(device=self._device) for local_action in local_actions]
+                local_rewards = [local_reward.to(device=self._device) for local_reward in local_rewards]
+                local_dones = [local_done.to(device=self._device) for local_done in local_dones]
+                local_next_states = [local_next_state.to(device=self._device) for local_next_state in local_next_states]
 
-                buffer.push(transition=(global_state, global_action, global_reward, global_done, global_next_state))
-                rewards_in_this_episode.append(global_reward.tolist())
+                buffer.push(transition=(local_states, local_actions, local_rewards, local_dones, local_next_states))
+                rewards_in_this_episode.append(torch.cat(local_rewards).tolist())
 
                 if len(buffer) > self._hyperparameters["buffer_sample_size"]:
                     if len(buffer) % self._hyperparameters["buffer_frequency"] == 0:
@@ -134,9 +133,9 @@ class CollaborativeCompetition:
                         for _ in range(self._hyperparameters["buffer_sample_iterations"]):
                             self._agent_group.update(*batch)
 
-                local_state = local_next_state
+                local_states = local_next_states
 
-                if any(global_done):
+                if any(local_dones):
                     # print("Steps in episode: {:4d} (current buffer size: {:6d})".format(step, len(buffer)))
                     break
 

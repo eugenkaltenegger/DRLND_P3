@@ -52,14 +52,14 @@ class AgentGroup:
     def target_act(self, states: List[Tensor], add_noise: bool) -> List[Tensor]:
         return [agent.target_act(state=state, add_noise=add_noise) for agent, state in zip(self._agents, states)]
 
-    def update(self, global_state, global_action, global_reward, global_done, global_next_state):
+    def update(self, local_states, local_actions, local_rewards, local_dones, local_next_states):
         """update the critics and actors of all the agents """
 
-        local_states = Utils.global_to_local(global_state, agents=len(self._agents))
-        local_rewards = Utils.global_to_local(global_reward, agents=len(self._agents))
-        local_dones = Utils.global_to_local(global_done, agents=len(self._agents))
-        local_next_states = Utils.global_to_local(global_next_state, agents=len(self._agents))
-        local_numeric_dones = [torch.gt(agent_done, 0).int() for agent_done in local_dones]
+        local_numeric_dones = [torch.gt(local_done, 0).int().to(device=self._device) for local_done in local_dones]
+
+        global_state = torch.cat(local_states, dim=1).to(device=self._device)
+        global_action = torch.cat(local_actions, dim=1).to(device=self._device)
+        global_next_state = torch.cat(local_next_states, dim=1).to(device=self._device)
 
         for agent_index, agent in enumerate(self._agents):
             # --------------------------------------------- optimize critic --------------------------------------------
