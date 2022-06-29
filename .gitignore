@@ -1,5 +1,6 @@
 # workspace specific
-/env
+/env/Tennis_Linux/*
+/env/Tennis_Linux.zip
 /example
 /jupyter
 # python specific
