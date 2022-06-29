@@ -35,7 +35,7 @@ class HyperparametersRange:
         hpr["noise_decay"] = [0.9999]                           # noise reduction factor per steps
 
         # network parameters
-        hpr["tau"] = [0.1]                                      # tau (0 < tau < 1)
+        hpr["tau"] = [0.01]                                     # tau (0 < tau < 1)
 
         # actor parameters
         hpr["actor_layers"] = [[256, 128]]                      # actor layers
