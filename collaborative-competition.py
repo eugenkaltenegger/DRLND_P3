@@ -10,6 +10,7 @@ from collections import OrderedDict
 from torch import device
 from torch import Tensor
 from typing import List
+from typing import Tuple
 from typing import Optional
 
 from src.agent_group import AgentGroup
@@ -81,20 +82,24 @@ class CollaborativeCompetition:
             logging.error("\rINVALID OPERATION MODE {} (ALLOWED: train, tune and show)".format(mode))
 
         if mode == "train":
-            scores = self.train()
-            Utils.plot_scores(scores=scores, plot=True)
+            scores, means, _ = self.train()
+            Utils.plot_scores(scores=scores, means=means, show=True)
 
         if mode == "tune":
-            scores = self.tune()
-            Utils.plot_scores(scores=scores, plot=True)
+            scores, means, _ = self.tune()
+            Utils.plot_scores(scores=scores, means=means, show=True)
 
         if mode == "show":
             self.show()
 
-    def train(self) -> List[float]:
+    def train(self) -> Tuple[List[float], List[float], bool]:
         self.enable_training()
         self.reset_environment()
         self.reset_agent_group()
+
+        logging.info("\r-------------------------- Hyperparameters ---------------------------")
+        Utils.print_hyperparameters(self._hyperparameters)
+        logging.info("\r----------------------------------------------------------------------")
 
         best_score = None
         best_episode = None
@@ -103,6 +108,7 @@ class CollaborativeCompetition:
         buffer = Buffer(self._hyperparameters["buffer_size"])
 
         scores = []
+        means = []
         for episode in range(1, self._hyperparameters["episodes"] + 1):
 
             local_state: List[Tensor] = self.reset_environment()
@@ -110,7 +116,7 @@ class CollaborativeCompetition:
 
             for step in range(1, self._hyperparameters["steps"] + 1):
                 local_state = [state.to(device=self._device) for state in local_state]
-                local_action = self._agent_group.act(states=local_state, noise=True, )
+                local_action = self._agent_group.act(states=local_state, add_noise=True, )
                 local_reward, local_done, local_next_state = self._environment.step(actions=local_action)
 
                 global_state = Utils.local_to_global(local_state).to(device=self._device)
@@ -139,7 +145,6 @@ class CollaborativeCompetition:
             score1 = sum([x[1] for x in rewards_in_this_episode])
             score = max(score0, score1)
             scores.append(score)
-            mean = 0
 
             print_frequency = 100
             steps_until_now = len(scores)
@@ -147,7 +152,9 @@ class CollaborativeCompetition:
             if steps_until_now >= 100:
                 mean = numpy.array(scores[-100:]).mean()
             else:
-                mean = numpy.array(scores).mean()
+                mean = 0
+
+            means.append(mean)
 
             if best_score is None or score > best_score:
                 best_score = score
@@ -159,19 +166,19 @@ class CollaborativeCompetition:
 
             if steps_until_now % print_frequency == 0:
                 non_null_percentage = sum([1 if score != 0 else 0 for score in scores[-print_frequency:]]) / print_frequency * 100
-                print("episode {:6d}: best score: {:8.4f}, episode: {:6d}, occurrence: {:6d}, not zero: {:7.3f}% - MEAN: {:12.8f}"
-                      .format(episode, best_score, best_episode, best_score_occurrence, non_null_percentage, mean))
+                print("episode {:6d}: best score: {:6.2f}, occurrence: {:6d}, not zero: {:6.2f}% - MEAN: {:8.4f}"
+                      .format(episode, best_score, best_score_occurrence, non_null_percentage, mean))
                 best_score = None
                 best_episode = None
                 best_score_occurrence = 0
 
             if mean >= 0.5:
                 logging.info("\rENVIRONMENT SOLVED!")
-                return scores
+                return scores, means, True
             # TODO: end
-        return scores
+        return scores, means, False
 
-    def tune(self) -> List[float]:
+    def tune(self) -> Tuple[List[float], List[float], bool]:
         for hp_key, hpr_key in zip(self._hyperparameters.keys(), self._hyperparameters_range.keys()):
             if not hp_key == hpr_key:
                 logging.error("\rINVALID HYPERPARAMETERS FOR TUNING")
@@ -180,36 +187,35 @@ class CollaborativeCompetition:
         hp_iterators = [iter(hpr) for hpr in self._hyperparameters_range.values()]
         hp_combinations = itertools.product(*hp_iterators)
 
-        best_run_mean_100 = None
-        best_run_scores = None
-        best_run_hp = None
+        best_scores = None
+        best_means = None
+        best_solve = False
+        best_hp = None
 
         for hp_combination in hp_combinations:
             self._hyperparameters = OrderedDict(zip(self._hyperparameters_range.keys(), hp_combination))
 
-            logging.info("----------------------------------------------------------------------")
-            Utils.print_hyperparameters(self._hyperparameters)
-            logging.info("----------------------------------------------------------------------")
+            scores, means, solve = self.train()
 
-            current_run_scores = self.train()
-            current_run_mean_100 = numpy.array(current_run_scores[-100:]).mean()
+            if solve:
+                best_scores = [] if best_scores is None else best_scores
+                best_means = [] if best_means is None else best_means
+                best_solve = True
 
-            if best_run_mean_100 is None or best_run_mean_100 < current_run_mean_100:
-                best_run_scores = current_run_scores
-                best_run_hp = self._hyperparameters.copy()
-
-        best_run_episodes = len(best_run_scores)
-        best_run_mean_score = numpy.average(best_run_episodes[-100:])
+                if len(scores) < len(best_scores):
+                    best_scores = scores
+                    best_means = means
+                    best_hp = self._hyperparameters.copy()
 
         logging.info("TUNING FINISHED")
-        logging.info("BEST RUN EPISODES: {}".format(best_run_episodes))
-        logging.info("BEST RUN MEAN SCORE (OVER 100 EPISODES): {}".format(best_run_mean_score))
+        logging.info("BEST RUN EPISODES: {}".format(len(best_scores)))
+        logging.info("BEST RUN MEAN SCORE (OVER 100 EPISODES): {}".format(best_means[-1]))
 
-        Utils.print_hyperparameters(best_run_hp)
+        Utils.print_hyperparameters(best_hp)
 
         self._environment.close()
 
-        return best_run_scores
+        return best_scores, best_means, best_solve
 
     def show(self) -> None:
         pass

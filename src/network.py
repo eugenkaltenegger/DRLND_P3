@@ -46,6 +46,7 @@ class Network(Module):
         self._output_function = output_function() if output_function is not None else None
 
         self._model_sequential = self._create_model_sequential()
+        self._reset_parameters()
 
     def forward(self, state: Tensor) -> Tensor:
         """
@@ -86,6 +87,17 @@ class Network(Module):
         lim = 1. / numpy.sqrt(fan_in)
         return -lim, lim
 
+    def _reset_parameters(self):
+        layers = []
+        for layer in self._model_sequential:
+            if type(layer) == Linear:
+                layers.append(layer)
+
+        for layer in layers[:-1]:
+            layer.weight.data.uniform_(*self.hidden_init(layer))
+
+        layers[-1].weight.data.uniform_(-3e-3, 3e-3)
+
     def _create_model_sequential(self) -> Sequential:
         input_size = self._state_size
         output_size = self._action_size
@@ -97,10 +109,6 @@ class Network(Module):
         nl_sizes += [(self._layers[i - 1], self._layers[i]) for i in range(1, len(self._layers))]
         nl_sizes += [(self._layers[-1], output_size)]
         nl_objects = [Linear(layer_size[0], layer_size[1]) for layer_size in nl_sizes]
-
-        for layer in nl_objects[:-1]:
-            layer.weight.data.uniform_(*self.hidden_init(layer))
-        nl_objects[-1].weight.data.uniform_(-1e-3, 1e-3)
 
         layers_dict: Dict[str, Module] = OrderedDict(zip(nl_names, nl_objects))
 

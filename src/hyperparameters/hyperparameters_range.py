@@ -25,9 +25,9 @@ class HyperparametersRange:
 
         # buffer parameters
         hpr["buffer_size"] = [10000]                            # replay buffer size
-        hpr["buffer_frequency"] = [1]                           # replay buffer learning frequency (number of steps)
+        hpr["buffer_frequency"] = [4]                           # replay buffer learning frequency (number of steps)
         hpr["buffer_sample_size"] = [256]                       # replay buffer sample size (batch size)
-        hpr["buffer_sample_iterations"] = [1]                   # replay buffer sample learning iterations
+        hpr["buffer_sample_iterations"] = [8]                   # replay buffer sample learning iterations
 
         # action noise parameters
         hpr["noise_maximum"] = [1.00]                           # maximum noise (starting noise)
@@ -35,7 +35,7 @@ class HyperparametersRange:
         hpr["noise_decay"] = [0.9999]                           # noise reduction factor per steps
 
         # network parameters
-        hpr["tau"] = [0.1]  # tau (0 < tau < 1)
+        hpr["tau"] = [0.1]                                      # tau (0 < tau < 1)
 
         # actor parameters
         hpr["actor_layers"] = [[256, 128]]                      # actor layers
@@ -49,7 +49,7 @@ class HyperparametersRange:
         hpr["critic_activation_function"] = [torch.nn.ReLU]     # critic activation function
         hpr["critic_output_function"] = [None]                  # critic output function
         hpr["critic_optimizer"] = [torch.optim.Adam]            # critic optimizer
-        hpr["critic_optimizer_learning_rate"] = [0.0001]        # critic optimizer learning rate
+        hpr["critic_optimizer_learning_rate"] = [0.001]         # critic optimizer learning rate
 
         self.hpr = hpr
 
