@@ -31,7 +31,7 @@ class HyperparametersRange:
 
         # action noise parameters
         hpr["noise_maximum"] = [1.00]                           # maximum noise (starting noise)
-        hpr["noise_minimum"] = [0.01]                           # minimum noise (ending noise)
+        hpr["noise_minimum"] = [0.10]                           # minimum noise (ending noise)
         hpr["noise_decay"] = [0.999]                            # noise reduction factor per steps
 
         # network parameters
