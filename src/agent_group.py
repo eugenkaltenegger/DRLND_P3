@@ -54,11 +54,17 @@ class AgentGroup:
     def update(self, local_states, local_actions, local_rewards, local_dones, local_next_states):
         """update the critics and actors of all the agents """
 
-        local_numeric_dones = [torch.gt(local_done, 0).int().to(device=self._device) for local_done in local_dones]
+        local_states = [local_state.detach() for local_state in local_states]
+        local_actions = [local_action.detach() for local_action in local_actions]
+        local_rewards = [local_reward.detach() for local_reward in local_rewards]
+        local_dones = [local_done.detach() for local_done in local_dones]
+        local_next_states = [local_next_state.detach() for local_next_state in local_next_states]
 
-        global_state = torch.cat(local_states, dim=1).detach().to(device=self._device)
-        global_action = torch.cat(local_actions, dim=1).detach().to(device=self._device)
-        global_next_state = torch.cat(local_next_states, dim=1).detach().to(device=self._device)
+        local_dones = [torch.gt(local_done, 0).int().to(device=self._device) for local_done in local_dones]
+
+        global_state = torch.cat(local_states, dim=1).to(device=self._device)
+        global_action = torch.cat(local_actions, dim=1).to(device=self._device)
+        global_next_state = torch.cat(local_next_states, dim=1).to(device=self._device)
 
         for agent_index, agent in enumerate(self._agents):
             # --------------------------------------------- optimize critic --------------------------------------------
@@ -69,7 +75,7 @@ class AgentGroup:
 
             q_next = agent.target_critic(target_critic_input)
 
-            y = local_rewards[agent_index] + self._discount * q_next * (1 - local_numeric_dones[agent_index]).to(self._device)
+            y = local_rewards[agent_index] + self._discount * q_next * (1 - local_dones[agent_index])
 
             critic_input = torch.cat((global_state, global_action), dim=1).to(self._device)
             q = agent.critic(critic_input)
