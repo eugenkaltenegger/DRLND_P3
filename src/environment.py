@@ -66,8 +66,8 @@ class Environment:
 
         info = self._environment.step(actions)[brain.brain_name]
 
-        rewards: [Tensor] = [torch.tensor([reward], dtype=torch.float) for reward in info.rewards]
-        dones: [Tensor] = [torch.tensor([local_done], dtype=torch.bool) for local_done in info.local_done]
+        rewards: [Tensor] = [torch.tensor(reward, dtype=torch.float).reshape(1) for reward in info.rewards]
+        dones: [Tensor] = [torch.tensor(local_done, dtype=torch.bool).reshape(1) for local_done in info.local_done]
         states: [Tensor] = [torch.tensor(state, dtype=torch.float) for state in info.vector_observations]
 
         self._states = states
