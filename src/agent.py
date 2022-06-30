@@ -72,7 +72,7 @@ class Agent:
         NetworkUtils.hard_update(target_network=self.target_critic, source_network=self.critic)
 
     def act(self, state: Tensor, add_noise: bool = True) -> Tensor:
-        return self._apply_network(network=self.target_actor,
+        return self._apply_network(network=self.actor,
                                    state=state,
                                    add_noise=add_noise,
                                    output_min=-1.0,
