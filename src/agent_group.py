@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import torch
 
 from collections import OrderedDict
@@ -66,8 +67,7 @@ class AgentGroup:
 
             target_critic_input = torch.cat((global_next_state, global_next_target_action), dim=1)
 
-            with torch.no_grad():
-                q_next = agent.target_critic(target_critic_input)
+            q_next = agent.target_critic(target_critic_input)
 
             y = local_rewards[agent_index] + self._discount * q_next * (1 - local_numeric_dones[agent_index]).to(self._device)
 
