@@ -109,6 +109,7 @@ class CollaborativeCompetition:
 
         scores = []
         means = []
+        steps = []
         for episode in range(1, self._hyperparameters["episodes"] + 1):
 
             local_states: List[Tensor] = self.reset_environment()
@@ -137,6 +138,7 @@ class CollaborativeCompetition:
 
                 if any(local_dones):
                     # print("Steps in episode: {:4d} (current buffer size: {:6d})".format(step, len(buffer)))
+                    steps.append(step)
                     break
 
             # TODO start: the following lines are for debugging purposes only - use proper logger instead
@@ -146,9 +148,8 @@ class CollaborativeCompetition:
             scores.append(score)
 
             print_frequency = 100
-            steps_until_now = len(scores)
 
-            if steps_until_now >= 100:
+            if episode >= 100:
                 mean = numpy.array(scores[-100:]).mean()
             else:
                 mean = 0
@@ -163,10 +164,10 @@ class CollaborativeCompetition:
             if score == best_score and episode != best_episode:
                 best_score_occurrence += 1
 
-            if steps_until_now % print_frequency == 0:
+            if episode % print_frequency == 0:
                 non_null_percentage = sum([1 if score != 0 else 0 for score in scores[-print_frequency:]]) / print_frequency * 100
-                print("episode {:6d}: best score: {:6.2f}, occurrence: {:6d}, not zero: {:6.2f}% - MEAN: {:8.4f}"
-                      .format(episode, best_score, best_score_occurrence, non_null_percentage, mean))
+                print("episode {:6d}: steps: {:6d}, best score: {:6.2f}, occurrence: {:6d}, not zero: {:6.2f}% - MEAN: {:8.4f}"
+                      .format(episode, sum(steps[-print_frequency:]),best_score, best_score_occurrence, non_null_percentage, mean))
                 best_score = None
                 best_episode = None
                 best_score_occurrence = 0
