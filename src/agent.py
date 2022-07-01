@@ -2,14 +2,22 @@
 
 import torch
 import torch.optim as optimizer
+import typing
 
-from src.network import Network
-from src.network_utils import NetworkUtils
-from src.noise import Noise
 from torch import Tensor
 from torch.nn import Module
 from torch.optim import Optimizer
+from typing import Dict
 from typing import List
+
+from src.networks.actor import Actor
+from src.networks.critic import Critic
+from src.networks.network import Network
+from src.noise import Noise
+
+
+# required for typehint Self
+Self = typing.TypeVar("Self", bound="Agent")
 
 
 class Agent:
@@ -41,38 +49,42 @@ class Agent:
                                    scale_minimum=noise_minimum,
                                    scale_decay=noise_decay)
 
-        self.target_actor: Network = Network(state_size=state_size,
-                                             action_size=action_size,
-                                             layers=actor_layers,
-                                             activation_function=actor_activation_function,
-                                             output_function=actor_output_function).to(device=self._device)
+        assert(len(actor_layers) == 2)
+        assert(len(critic_layers) == 2)
 
-        self.actor: Network = Network(state_size=state_size,
-                                      action_size=action_size,
-                                      layers=actor_layers,
-                                      activation_function=actor_activation_function,
-                                      output_function=actor_output_function).to(device=self._device)
-
-        self.target_critic: Network = Network(state_size=global_view_size,
-                                              action_size=1,
-                                              layers=critic_layers,
-                                              activation_function=critic_activation_function,
-                                              output_function=critic_output_function).to(device=self._device)
-
-        self.critic: Network = Network(state_size=global_view_size,
-                                       action_size=1,
-                                       layers=critic_layers,
-                                       activation_function=critic_activation_function,
-                                       output_function=critic_output_function).to(device=self._device)
+        self.target_actor: Network = Actor(seed=10,
+                                           state_size=state_size,
+                                           action_size=action_size,
+                                           layers=actor_layers,
+                                           activation_function=actor_activation_function,
+                                           output_function=actor_output_function).to(device=self._device)
+        self.actor: Network = Actor(seed=10,
+                                    state_size=state_size,
+                                    action_size=action_size,
+                                    layers=actor_layers,
+                                    activation_function=actor_activation_function,
+                                    output_function=actor_output_function).to(device=self._device)
+        self.target_critic: Network = Critic(seed=10,
+                                             state_size=global_view_size,
+                                             action_size=1,
+                                             layers=critic_layers,
+                                             activation_function=critic_activation_function,
+                                             output_function=critic_output_function).to(device=self._device)
+        self.critic: Network = Critic(seed=10,
+                                      state_size=global_view_size,
+                                      action_size=1,
+                                      layers=critic_layers,
+                                      activation_function=critic_activation_function,
+                                      output_function=critic_output_function).to(device=self._device)
 
         self.actor_optimizer: Optimizer = actor_optimizer(params=self.actor.parameters(), lr=actor_learning_rate)
         self.critic_optimizer: Optimizer = critic_optimizer(params=self.critic.parameters(), lr=critic_learning_rate)
 
-        NetworkUtils.hard_update(target_network=self.target_actor, source_network=self.actor)
-        NetworkUtils.hard_update(target_network=self.target_critic, source_network=self.critic)
+        Network.hard_update(source_network=self.actor, target_network=self.target_actor)
+        Network.hard_update(source_network=self.critic, target_network=self.target_critic)
 
     def act(self, state: Tensor, add_noise: bool = True) -> Tensor:
-        return self._apply_network(network=self.target_actor,
+        return self._apply_network(network=self.actor,
                                    state=state,
                                    add_noise=add_noise,
                                    output_min=-1.0,
@@ -92,12 +104,22 @@ class Agent:
                        output_min: float,
                        output_max: float) -> Tensor:
         state: Tensor = state.to(device=self._device)
-        action: Tensor = network(state)
+
+        network.eval()
+        with torch.no_grad():
+            action: Tensor = network(state)
+        network.train()
 
         if add_noise:
             noise_tensor = self._noise.get_action_noise_scale().to(device=self._device)
             action = action + noise_tensor
 
         action = torch.clip(action, output_min, output_max)
-
         return action.to(device=self._device)
+
+    def to_checkpoint_dict(self, filename: str = "checkpoint.pth") -> Dict:
+        pass
+
+    @staticmethod
+    def from_checkpoint_dict(filename: str = "checkpoint.pth") -> Self:
+        pass

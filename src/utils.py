@@ -27,7 +27,9 @@ class Utils:
         :return: None
         """
         pyplot.figure()
-        pyplot.plot(numpy.arange(len(scores)), scores, means)
+        x = numpy.arange(len(scores))
+        pyplot.plot(x, scores, label="score")
+        pyplot.plot(x, means, label="mean over 100 scores")
         pyplot.ylabel('Score')
         pyplot.xlabel('Episode')
         if show:
@@ -44,11 +46,3 @@ class Utils:
         """
         for key, value in hyperparameters.items():
             logging.info("\r{}: {}".format(key, value))
-
-    @staticmethod
-    def local_to_global(local_view: List[Tensor], dim=0) -> Tensor:
-        return torch.cat(tuple(local_view), dim=dim)
-
-    @staticmethod
-    def global_to_local(global_view: Tensor, agents):
-        return [local_view.t() for local_view in torch.split(global_view.t(), int(global_view.shape[1]/agents), dim=0)]

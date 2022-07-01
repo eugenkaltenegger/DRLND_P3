@@ -7,8 +7,7 @@ from torch import Tensor
 from typing import List
 
 from src.agent import Agent
-from src.network_utils import NetworkUtils
-from src.utils import Utils
+from src.networks.network import Network
 
 
 class AgentGroup:
@@ -26,6 +25,7 @@ class AgentGroup:
         self._agents: List[Agent] = [self.create_agent(hyperparameters=hyperparameters) for _ in range(self._agents_number)]
         self._tau = hyperparameters["tau"]
         self._discount = hyperparameters["discount"]
+        self._loss_function = torch.nn.MSELoss()
 
     def create_agent(self, hyperparameters: OrderedDict) -> Agent:
         return Agent(device=self._device,
@@ -62,44 +62,43 @@ class AgentGroup:
 
         local_dones = [torch.gt(local_done, 0).int().to(device=self._device) for local_done in local_dones]
 
-        global_state = torch.cat(local_states, dim=1).to(device=self._device)
-        global_action = torch.cat(local_actions, dim=1).to(device=self._device)
-        global_next_state = torch.cat(local_next_states, dim=1).to(device=self._device)
+        for own_index, agent in enumerate(self._agents):
+            other_index = 1 if own_index == 0 else 0
+            # ---------------------------- update critic ---------------------------- #
+            global_state = torch.cat((local_states[own_index], local_states[other_index]), dim=1).to(device=self._device)
+            global_action = torch.cat((local_actions[own_index], local_actions[other_index]), dim=1).to(device=self._device)
+            global_next_state = torch.cat((local_next_states[own_index], local_next_states[other_index]), dim=1).to(device=self._device)
+            global_reward = torch.cat((local_rewards[own_index], local_rewards[other_index]), dim=1).to(device=self._device)
+            global_done = torch.cat((local_dones[own_index], local_dones[other_index]), dim=1).to(device=self._device)
 
-        for agent_index, agent in enumerate(self._agents):
-            # --------------------------------------------- optimize critic --------------------------------------------
-            local_next_target_actions = [agent.target_act(local_next_state, add_noise=False) for local_next_state in local_next_states]
-            global_next_target_action = Utils.local_to_global(local_next_target_actions, dim=1)
+            own_target_action_prediction = agent.target_actor(local_states[own_index])
+            other_target_action_prediction = agent.target_actor(local_states[other_index])
+            global_target_action_prediction = torch.cat((own_target_action_prediction, other_target_action_prediction), dim=1)
+            global_target_action_prediction = global_target_action_prediction.to(device=self._device)
 
-            target_critic_input = torch.cat((global_next_state, global_next_target_action), dim=1)
+            q_targets_next = agent.target_critic(global_next_state, global_target_action_prediction)
 
-            q_next = agent.target_critic(target_critic_input)
+            q_targets = local_rewards[own_index] + (self._discount * q_targets_next * (1 - local_dones[own_index]))
+            # q_targets = global_reward + (gamma * q_targets_next * (1 - global_done))
 
-            y = local_rewards[agent_index] + self._discount * q_next * (1 - local_dones[agent_index])
+            q_expected = agent.critic(global_state, global_action)
 
-            critic_input = torch.cat((global_state, global_action), dim=1).to(self._device)
-            q = agent.critic(critic_input)
-
-            loss_function = torch.nn.MSELoss()
-            critic_loss = loss_function(q, y)
+            critic_loss = self._loss_function(q_expected, q_targets)
 
             agent.critic_optimizer.zero_grad()
             critic_loss.backward()
             agent.critic_optimizer.step()
-            # --------------------------------------------- optimize actor ---------------------------------------------
-            q_inputs = [agent.act(local_state, add_noise=False) for local_state in local_states]
-            q_input = Utils.local_to_global(q_inputs, dim=1)
-            critic_input = torch.cat((global_state, q_input), dim=1)
-            actor_loss = -agent.critic(critic_input).mean()
+            # ---------------------------- update actor ---------------------------- #
+            own_action_prediction = agent.actor(local_states[own_index])
+            other_action_prediction = agent.actor(local_states[other_index]).detach()
+            global_action_prediction = torch.cat((own_action_prediction, other_action_prediction), dim=1)
+            global_action_prediction = global_action_prediction.to(device=self._device)
+
+            actor_loss = -agent.critic(global_state, global_action_prediction).mean()
 
             agent.actor_optimizer.zero_grad()
             actor_loss.backward()
             agent.actor_optimizer.step()
-            # ----------------------------------------------------------------------------------------------------------
-
-        self.update_target()
-
-    def update_target(self) -> None:
-        for agent in self._agents:
-            NetworkUtils.soft_update(target_network=agent.target_actor, source_network=agent.actor, tau=self._tau)
-            NetworkUtils.soft_update(target_network=agent.target_critic, source_network=agent.critic, tau=self._tau)
+            # ----------------------- update target networks ----------------------- #
+            Network.soft_update(source_network=agent.critic, target_network=agent.target_critic, tau=self._tau)
+            Network.soft_update(source_network=agent.actor, target_network=agent.target_actor, tau=self._tau)

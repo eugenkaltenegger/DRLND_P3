@@ -19,7 +19,7 @@ class Buffer:
         self.deque.append(transition)
 
     def batch(self, sample_size) -> Tuple[List[Tensor], List[Tensor], List[Tensor], List[Tensor], List[Tensor]]:
-        samples = random.sample(self.deque, sample_size)
+        samples = random.sample(self.deque, k=sample_size)
         samples = [list(sample) for sample in samples]
 
         i_range: int = len(samples[0])

@@ -117,7 +117,8 @@ class CollaborativeCompetition:
 
             for step in range(1, self._hyperparameters["steps"] + 1):
                 local_states = [local_state.to(device=self._device) for local_state in local_states]
-                local_actions = self._agent_group.act(states=local_states, add_noise=True, )
+                local_actions = self._agent_group.act(states=local_states, add_noise=True)
+                local_actions = [local_action[0] for local_action in local_actions]
                 local_rewards, local_dones, local_next_states = self._environment.step(actions=local_actions)
 
                 local_actions = [local_action.to(device=self._device) for local_action in local_actions]
@@ -129,7 +130,7 @@ class CollaborativeCompetition:
                 rewards_in_this_episode.append(torch.cat(local_rewards).tolist())
 
                 if len(buffer) > self._hyperparameters["buffer_sample_size"]:
-                    if len(buffer) % self._hyperparameters["buffer_frequency"] == 0:
+                    if episode % self._hyperparameters["buffer_frequency"] == 0:
                         batch = buffer.batch(self._hyperparameters["buffer_sample_size"])
                         for _ in range(self._hyperparameters["buffer_sample_iterations"]):
                             self._agent_group.update(*batch)
@@ -142,8 +143,8 @@ class CollaborativeCompetition:
                     break
 
             # TODO start: the following lines are for debugging purposes only - use proper logger instead
-            score0 = sum([x[0] for x in rewards_in_this_episode])
-            score1 = sum([x[1] for x in rewards_in_this_episode])
+            score0 = sum([round(x[0]*100)/100 for x in rewards_in_this_episode])
+            score1 = sum([round(x[1]*100)/100 for x in rewards_in_this_episode])
             score = max(score0, score1)
             scores.append(score)
 

@@ -2,7 +2,25 @@
 
 ## Project Description
 
+In this exercise the task is to greate and train two agents to play tennis with each other.
+The aim is to train the agents in such a way that the pass the ball to each other.
+When an agent drops the ball it receives a negative reward of -0.01.
+If an agent can pass the ball over the net the agent receives a positive reward of +0.1.
+Therefore, the rewards are better the longer the agents play.
 
+The environment vectors have the following dimensions for each agent:
+- State vector size: 3 * 8 = 24 (3 frames of 8 observations stacked)
+- Action vector size: 2
+
+Therefore, the global view of the environment has a state vector of size 48 and an action vector of size 4.
+
+After each episode the scores of each agent are summed up and the maximum of these two values is taken as episode score.
+In order to solve the environment the score as described above over 100 episodes has the to be higher than 0.5 in average.
+
+For this exercise it is a requirement that the agents utilize the [MADDPG](MADDPG_paper) architecture which is the multiagent version of [DDPG](DDPG_paper).
+
+[DDPG_paper]: https://arxiv.org/pdf/1509.02971v6.pdf
+[MADDPG_paper]: https://arxiv.org/pdf/1706.02275v4.pdf
 
 ### Dependencies
 

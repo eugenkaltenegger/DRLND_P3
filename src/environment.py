@@ -58,7 +58,7 @@ class Environment:
         function to make a step in the environment
         :param actions: action for the agent
         :param brain: brain for which will execute the actions
-        :return: state (for all agents), rewards (for all agents), dones (for all agents) following the execution of the action
+        :return: rewards (for all agents), dones (for all agents) and state (for all agents) following the execution of the action
         """
         brain = brain if brain is not None else self._default_brain
 
