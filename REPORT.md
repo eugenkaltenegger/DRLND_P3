@@ -48,7 +48,74 @@ During the training of the agent these weights are adopted to achieve the desire
 
 ### Specific Architecture
 
-### Findings
+The solution for this exercise utilized the DDPG and MADDPG architecture.
+Therefore, the MADDPG agent contains multiple DDPG agents.
+The critic (and the target critic) of the DDPG agents has a global view.
+That means that the critic is provided the state vector and the actions of all agents.
+The actor (and the target actor) of the DDPG agents has a local view.
+That mean that the actor is provided the state vector of the single agent.
+
+The implementation details of the agent, the agent_group and the networks they utilize can be found in the following files:
+- `src/networks/actor.py`: the actor and target actor network
+- `src/networks/critic.py`: the critic and target critic network
+- `src/networks/network.py`: an abstract base class for the actor and the critic
+- `src/agent.py`: a DDPG agent (only those parts that are required for MADDPG)
+- `src/agent_group.py`: a MADDPG agent built from DDPG agents
+
+The basic papers of MADDPG and DDPG recommend a replay buffer that takes random samples.
+This has not been showing good results for this environment, therefore this solution applies a simple approach on a weighting.
+Each step of the simulation is added to the replay buffer, where the reward of that steps is also stored additionally.
+The weighting is based on the normalized (min-max normalization) rewards.
+To prevent a weight of zero a small offset is added to each weight.
+This modification to the MADDPG and DDPG algorithm improved stability significantly.
+
+The implementation details of the buffer and the weighting can be found in the following files:
+- `src/buffer.py`
+
+In the file `collaborative-competition.py` is the entry point for the execution of this project.
+
+The hyperparameters which are described in more detail in the section below can be found in the files:
+- `hyperparameters.py`: hyperparameters utilized for the `training` mode
+- `hyperparameters_range.py`: hyperparameters utilized for the `tune` mode
+
+The hyperparameters as show in `hyperparameters.py` have been applied to solve the environment in less than 1300 steps.
+The graphic below shows the score (blue) as well as the mean score over 100 episodes (orange) of the according run.
+
+![](collaborative-competition.png "Solving the environment in less than 1300 episodes")
+
+#### Findings
+
+While solving this exercise various configurations for the hyperparameters have been tried.
+
+With the following hyperparameters the environment was solved with less than 1300 episodes.
+
+- `episodes`: maximum number of episodes
+- `steps`: maximum number of steps for each episode
+- `discount`: discount factor for future rewards (gamma)
+- `buffer_size`: maximum size of the replay buffer
+- `learning_frequency`: number of episodes after which the learning process is triggered
+- `batch_size`: size of a batch that the agents will learn
+- `buffer_iterations`: number of iterations of taking a sample from the buffer
+- `sample_iterations`: number of iterations of learning a sample
+
+- `noise_maximum`: maximum noise scaling factor (noise scaling factor at the start)
+- `noise_minimum`: minimum noise scaling factor (noise scaling factor at the end)
+- `noise_decay`: factor of noise reduction after each step
+
+- `tau`: factor for soft update of DDPG learning process
+
+- `actor_layers`: network architecture for the actor network
+- `actor_activation_function`: activation function applied after each layer of the neuronal network of the actor (except the last)
+- `actor_output_function`: activation function after the last layer of the neuronal network of the actor, if set to `None` no such function is applied
+- `actor_optimizer`: optimizer function of the actor
+- `actor_optimizer_learning_rate`: optimizer learning rate of the actor
+- `actor_covariance`: size of the covariance of the actor action selection
+
+- `critic_layers`: network architecture for the critic network
+- `critic_activation_function`: activation function applied after each layer of the neuronal network of the critic (except the last)
+- `critic_output_function`: activation function after the last layer of the neuronal network of the critic, if set to `None` no such function is applied
+- `critic_optimizer`: optimizer function of the critic
+- `critic_optimizer_learning_rate`: optimizer learning rate of the critic
 
 ### Improvements
 
@@ -63,6 +130,10 @@ Of course there is plenty of room for improvements:
 - Further hyperparameter tuning might be beneficial.
   The unstable properties of multiple agents made the process of hyperparameter tuning difficult and time-consuming.
   Hyperparameter tuning with multiple runs on the same set of hyperparameters and averaging over the results might lead to a more stable set of hyperparameters and better performance.
+- Performance improvements can be made.
+  The code to solve the environment was not written with performance in mind.
+  The focus was on solving the problem with easy to understand code.
+  Therefore, room for performance improvements is definitely given.
 
 Based on the high instability caused by multiple agents the number of episodes required to solve the environment has a high variety.
 
