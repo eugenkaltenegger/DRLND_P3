@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
+import copy
 import numpy
 import torch
 
 from numpy import array
 from torch import Tensor
+from typing import Optional
 
 
 class Noise:
@@ -24,21 +26,20 @@ class Noise:
         self.scale_decay: float = scale_decay
         self.scale_now: float = 0
 
-        self.mu: float = mu
-        self.mu_array: array = numpy.ones(self.action_size) * self.mu
+        self.mu: float = mu * numpy.ones(action_size)
         self.theta: float = theta
         self.sigma: float = sigma
-        self.state: array = self.mu_array.copy()
+        self.state: Optional[float] = None
 
         self.reset()
 
     def reset(self):
-        self.state = self.mu_array.copy()
+        self.state = copy.copy(self.mu)
         self.scale_now = self.scale_maximum
 
     def get_action_noise(self) -> Tensor:
         x: array = self.state
-        dx: array = self.theta * (self.mu_array - x) + self.sigma * numpy.random.randn(len(x))
+        dx: array = self.theta * (self.mu - x) + self.sigma * numpy.random.randn(self.action_size)
         self.state = x + dx
 
         return torch.tensor(self.state, dtype=torch.float)

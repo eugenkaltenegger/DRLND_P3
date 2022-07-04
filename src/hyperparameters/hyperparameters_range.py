@@ -8,6 +8,7 @@ from collections import OrderedDict
 class HyperparametersRange:
     """
     class to hold hyperparameters range
+    Note: the hyperparameters are documented on the file hyperparameters.py
     """
 
     def __init__(self):
@@ -17,39 +18,40 @@ class HyperparametersRange:
         hpr = OrderedDict()
 
         # episode parameters
-        hpr["episodes"] = [10000]                               # maximum episodes
-        hpr["steps"] = [1000]                                   # steps per episode
+        hpr["episodes"] = [10000]
+        hpr["steps"] = [1000]
 
         # reward parameters
-        hpr["discount"] = [0.99]                                # discount factor
+        hpr["discount"] = [0.99]
 
         # buffer parameters
-        hpr["buffer_size"] = [10000]                            # replay buffer size
-        hpr["buffer_frequency"] = [4]                           # replay buffer learning frequency (number of steps)
-        hpr["buffer_sample_size"] = [256]                       # replay buffer sample size (batch size)
-        hpr["buffer_sample_iterations"] = [8]                   # replay buffer sample learning iterations
+        hpr["buffer_size"] = [10000]
+        hpr["learning_frequency"] = [1]
+        hpr["batch_size"] = [1000]
+        hpr["buffer_iterations"] = [10]
+        hpr["sample_iterations"] = [1]
 
         # action noise parameters
-        hpr["noise_maximum"] = [1.00]                           # maximum noise (starting noise)
-        hpr["noise_minimum"] = [0.10]                           # minimum noise (ending noise)
-        hpr["noise_decay"] = [0.9999]                           # noise reduction factor per steps
+        hpr["noise_maximum"] = [1.00]
+        hpr["noise_minimum"] = [0.10]
+        hpr["noise_decay"] = [0.9995]
 
         # network parameters
-        hpr["tau"] = [0.01]                                     # tau (0 < tau < 1)
+        hpr["tau"] = [0.01]
 
         # actor parameters
-        hpr["actor_layers"] = [[256, 128]]                      # actor layers
-        hpr["actor_activation_function"] = [torch.nn.ReLU]      # actor activation function
-        hpr["actor_output_function"] = [None]                   # actor output function
-        hpr["actor_optimizer"] = [torch.optim.Adam]             # actor optimizer
-        hpr["actor_optimizer_learning_rate"] = [0.0001]         # actor optimizer learning rate
+        hpr["actor_layers"] = [[512, 256]]
+        hpr["actor_activation_function"] = [torch.nn.ReLU]
+        hpr["actor_output_function"] = [torch.nn.Tanh]
+        hpr["actor_optimizer"] = [torch.optim.Adam]
+        hpr["actor_optimizer_learning_rate"] = [0.001]
 
         # critic parameters
-        hpr["critic_layers"] = [[256, 128]]                     # critic layers
-        hpr["critic_activation_function"] = [torch.nn.ReLU]     # critic activation function
-        hpr["critic_output_function"] = [None]                  # critic output function
-        hpr["critic_optimizer"] = [torch.optim.Adam]            # critic optimizer
-        hpr["critic_optimizer_learning_rate"] = [0.001]         # critic optimizer learning rate
+        hpr["critic_layers"] = [[512, 256]]
+        hpr["critic_activation_function"] = [torch.nn.ReLU]
+        hpr["critic_output_function"] = [None]
+        hpr["critic_optimizer"] = [torch.optim.Adam]
+        hpr["critic_optimizer_learning_rate"] = [0.0001]
 
         self.hpr = hpr
 

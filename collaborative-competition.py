@@ -20,21 +20,23 @@ from src.hyperparameters.hyperparameters import Hyperparameters
 from src.hyperparameters.hyperparameters_range import HyperparametersRange
 from src.utils import Utils
 
+LOGGING_FREQUENCY = 100
+
 
 class CollaborativeCompetition:
 
     def __init__(self) -> None:
         # device variable
-        self._device: device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device: device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         # hyperparameter variables
-        self._hyperparameters: OrderedDict = Hyperparameters().get_dict()
-        self._hyperparameters_range: OrderedDict = HyperparametersRange().get_dict()
+        self.hp: OrderedDict = Hyperparameters().get_dict()
+        self.hpr: OrderedDict = HyperparametersRange().get_dict()
 
         # environment variables
-        self._environment: Optional[Environment] = None
-        self._environment_graphics: Optional[bool] = None
-        self._environment_training: Optional[bool] = None
+        self.environment: Optional[Environment] = None
+        self.environment_graphics: Optional[bool] = None
+        self.environment_training: Optional[bool] = None
 
         # agent group variables
         self._agent_group: Optional[AgentGroup] = None
@@ -45,8 +47,8 @@ class CollaborativeCompetition:
             training mode has to be either enabled or disabled
         :return: None
         """
-        self._environment_graphics = False
-        self._environment_training = True
+        self.environment_graphics = False
+        self.environment_training = True
 
     def disable_training(self) -> None:
         """
@@ -54,28 +56,32 @@ class CollaborativeCompetition:
             training mode has to be either enabled or disabled
         :return: None
         """
-        self._environment_graphics = True
-        self._environment_training = False
+        self.environment_graphics = True
+        self.environment_training = False
 
     def reset_environment(self) -> List[Tensor]:
-        if self._environment is None:
-            self._environment = Environment(enable_graphics=self._environment_graphics)
-            self._environment.reset(train_environment=self._environment_training)
+        if self.environment is None:
+            self.environment = Environment(enable_graphics=self.environment_graphics)
+            self.environment.reset(train_environment=self.environment_training)
 
-        if self._environment is not None:
-            self._environment.reset(train_environment=self._environment_training)
+        if self.environment is not None:
+            self.environment.reset(train_environment=self.environment_training)
 
-        return self._environment.states()
+        return self.environment.states()
 
-    def reset_agent_group(self) -> None:
-        if self._environment is None:
-            logging.error("\rENVIRONMENT IS REQUIRED TO SETUP AGENT GROUP (PARAMETERS FROM THE ENVIRONMENT ARE REQUIRED)")
+    def reset_agent_group(self, from_checkpoint: bool = False) -> None:
+        if self.environment is None:
+            logging.error(
+                "\rENVIRONMENT IS REQUIRED TO SETUP AGENT GROUP (PARAMETERS FROM THE ENVIRONMENT ARE REQUIRED)")
 
-        self._agent_group = AgentGroup(device=self._device,
-                                       agents=self._environment.number_of_agents(),
-                                       state_size=self._environment.state_size(),
-                                       action_size=self._environment.action_size(),
-                                       hyperparameters=self._hyperparameters)
+        if not from_checkpoint:
+            self._agent_group = AgentGroup(device=self.device,
+                                           agents=self.environment.number_of_agents(),
+                                           state_size=self.environment.state_size(),
+                                           action_size=self.environment.action_size(),
+                                           hyperparameters=self.hp)
+        if from_checkpoint:
+            self._agent_group = Utils.load_agent_group(device=self.device, filename="collaborative-competition.pth")
 
     def run(self, mode) -> None:
         if mode not in ["train", "tune", "show"]:
@@ -83,7 +89,7 @@ class CollaborativeCompetition:
 
         if mode == "train":
             scores, means, _ = self.train()
-            Utils.plot_scores(scores=scores, means=means, show=True, filename="training.png")
+            Utils.plot_scores(scores=scores, means=means, show=True, filename="collaborative-competition.png")
 
         if mode == "tune":
             scores, means, _ = self.tune()
@@ -95,95 +101,85 @@ class CollaborativeCompetition:
     def train(self) -> Tuple[List[float], List[float], bool]:
         self.enable_training()
         self.reset_environment()
-        self.reset_agent_group()
+        self.reset_agent_group(from_checkpoint=False)
 
-        logging.info("\r-------------------------- Hyperparameters ---------------------------")
-        Utils.print_hyperparameters(self._hyperparameters)
+        logging.info("\r-------------------------- HYPERPARAMETERS ---------------------------")
+        Utils.print_hyperparameters(self.hp)
         logging.info("\r----------------------------------------------------------------------")
 
         best_score = None
         best_episode = None
         best_score_occurrence = 0
 
-        buffer = Buffer(self._hyperparameters["buffer_size"])
+        buffer = Buffer(self.hp["buffer_size"])
 
         scores = []
         means = []
-        for episode in range(1, self._hyperparameters["episodes"] + 1):
+        steps = []
+        for episode in range(1, self.hp["episodes"] + 1):
 
             local_states: List[Tensor] = self.reset_environment()
-            rewards_in_this_episode = []
+            rewards = []
 
-            for step in range(1, self._hyperparameters["steps"] + 1):
-                local_states = [local_state.to(device=self._device) for local_state in local_states]
-                local_actions = self._agent_group.act(states=local_states, add_noise=True, )
-                local_rewards, local_dones, local_next_states = self._environment.step(actions=local_actions)
+            for step in range(1, self.hp["steps"] + 1):
+                local_states = [local_state.to(device=self.device) for local_state in local_states]
+                local_actions = self._agent_group.act(states=local_states, add_noise=True)
+                local_actions = [local_action[0] for local_action in local_actions]
+                local_rewards, local_dones, local_next_states = self.environment.step(actions=local_actions)
 
-                local_actions = [local_action.to(device=self._device) for local_action in local_actions]
-                local_rewards = [local_reward.to(device=self._device) for local_reward in local_rewards]
-                local_dones = [local_done.to(device=self._device) for local_done in local_dones]
-                local_next_states = [local_next_state.to(device=self._device) for local_next_state in local_next_states]
+                local_actions = [local_action.to(device=self.device) for local_action in local_actions]
+                local_rewards = [local_reward.to(device=self.device) for local_reward in local_rewards]
+                local_dones = [local_done.to(device=self.device) for local_done in local_dones]
+                local_next_states = [local_next_state.to(device=self.device) for local_next_state in local_next_states]
 
-                buffer.push(transition=(local_states, local_actions, local_rewards, local_dones, local_next_states))
-                rewards_in_this_episode.append(torch.cat(local_rewards).tolist())
-
-                if len(buffer) > self._hyperparameters["buffer_sample_size"]:
-                    if len(buffer) % self._hyperparameters["buffer_frequency"] == 0:
-                        batch = buffer.batch(self._hyperparameters["buffer_sample_size"])
-                        for _ in range(self._hyperparameters["buffer_sample_iterations"]):
-                            self._agent_group.update(*batch)
+                weight = max(torch.cat(local_rewards).tolist())
+                buffer.push(transition=(local_states, local_actions, local_rewards, local_dones, local_next_states),
+                            weight=weight)
+                rewards.append(torch.cat(local_rewards).tolist())
 
                 local_states = local_next_states
 
                 if any(local_dones):
-                    # print("Steps in episode: {:4d} (current buffer size: {:6d})".format(step, len(buffer)))
+                    steps.append(step)
                     break
 
-            # TODO start: the following lines are for debugging purposes only - use proper logger instead
-            score0 = sum([x[0] for x in rewards_in_this_episode])
-            score1 = sum([x[1] for x in rewards_in_this_episode])
-            score = max(score0, score1)
+            if len(buffer) > self.hp["batch_size"] and episode % self.hp["learning_frequency"] == 0:
+                for _ in range(self.hp["buffer_iterations"]):
+                    batch = buffer.batch(self.hp["batch_size"])
+                    for _ in range(self.hp["sample_iterations"]):
+                        self._agent_group.update(*batch)
+
+            score = max([sum([round(x[index], 4) for x in rewards]) for index in range(len(self._agent_group))])
             scores.append(score)
 
-            print_frequency = 100
-            steps_until_now = len(scores)
-
-            if steps_until_now >= 100:
-                mean = numpy.array(scores[-100:]).mean()
-            else:
-                mean = 0
-
+            mean = 0 if episode < 100 else numpy.array(scores[-100:]).mean()
             means.append(mean)
 
             if best_score is None or score > best_score:
                 best_score = score
-                best_episode = episode
-                best_score_occurrence = 1
 
-            if score == best_score and episode != best_episode:
-                best_score_occurrence += 1
-
-            if steps_until_now % print_frequency == 0:
-                non_null_percentage = sum([1 if score != 0 else 0 for score in scores[-print_frequency:]]) / print_frequency * 100
-                print("episode {:6d}: best score: {:6.2f}, occurrence: {:6d}, not zero: {:6.2f}% - MEAN: {:8.4f}"
-                      .format(episode, best_score, best_score_occurrence, non_null_percentage, mean))
+            if episode % LOGGING_FREQUENCY == 0:
+                not_zero = sum([1 if score != 0 else 0 for score in scores[-LOGGING_FREQUENCY:]])
+                not_zero_percentage = sum(steps[-LOGGING_FREQUENCY:]) / LOGGING_FREQUENCY * 100
+                steps_done = sum(steps[-LOGGING_FREQUENCY:])
+                logging.info("\repisode {:6d}: steps: {:6d}, best score: {:6.2f}, not zero: {:6.2f}% - MEAN: {:8.4f}".
+                             format(episode, steps_done, best_score, not_zero, mean))
                 best_score = None
-                best_episode = None
-                best_score_occurrence = 0
 
             if mean >= 0.5:
-                logging.info("\rENVIRONMENT SOLVED!")
+                logging.info("\rENVIRONMENT SOLVED AFTER {} EPISODES!".format(episode))
+                Utils.save_agent_group(self._agent_group, filename="collaborative-competition.pth")
                 return scores, means, True
-            # TODO: end
+
         return scores, means, False
 
     def tune(self) -> Tuple[List[float], List[float], bool]:
-        for hp_key, hpr_key in zip(self._hyperparameters.keys(), self._hyperparameters_range.keys()):
+        for hp_key, hpr_key in zip(self.hp.keys(), self.hpr.keys()):
             if not hp_key == hpr_key:
                 logging.error("\rINVALID HYPERPARAMETERS FOR TUNING")
                 exit()
 
-        hp_iterators = [iter(hpr) for hpr in self._hyperparameters_range.values()]
+        hp_iterators = [iter(hpr) for hpr in self.hpr.values()]
         hp_combinations = itertools.product(*hp_iterators)
 
         best_scores = None
@@ -192,7 +188,7 @@ class CollaborativeCompetition:
         best_hp = None
 
         for hp_combination in hp_combinations:
-            self._hyperparameters = OrderedDict(zip(self._hyperparameters_range.keys(), hp_combination))
+            self.hp = OrderedDict(zip(self.hpr.keys(), hp_combination))
 
             scores, means, solve = self.train()
 
@@ -204,20 +200,33 @@ class CollaborativeCompetition:
                 if len(scores) < len(best_scores):
                     best_scores = scores
                     best_means = means
-                    best_hp = self._hyperparameters.copy()
+                    best_hp = self.hp.copy()
 
-        logging.info("TUNING FINISHED")
-        logging.info("BEST RUN EPISODES: {}".format(len(best_scores)))
-        logging.info("BEST RUN MEAN SCORE (OVER 100 EPISODES): {}".format(best_means[-1]))
+        logging.info("\r-------------------------- TUNING FINISHED ---------------------------")
+        logging.info("\rBEST RUN EPISODES: {}".format(len(best_scores)))
+        logging.info("\rBEST RUN MEAN SCORE (OVER 100 EPISODES): {}".format(best_means[-1]))
 
         Utils.print_hyperparameters(best_hp)
 
-        self._environment.close()
+        self.environment.close()
 
         return best_scores, best_means, best_solve
 
     def show(self) -> None:
-        pass
+        self.disable_training()
+        self.reset_environment()
+        self.reset_agent_group(from_checkpoint=True)
+
+        local_states: List[Tensor] = self.reset_environment()
+
+        for _ in range(8192):
+            local_states = [local_state.to(device=self.device) for local_state in local_states]
+            local_actions = self._agent_group.target_act(states=local_states, add_noise=False)
+            local_actions = [local_action[0] for local_action in local_actions]
+            _, local_dones, local_states = self.environment.step(actions=local_actions)
+
+            if any(local_dones):
+                local_states = self.reset_environment()
 
 
 if __name__ == "__main__":

@@ -2,7 +2,25 @@
 
 ## Project Description
 
+In this exercise the task is to create and train two agents to play tennis with each other.
+The aim is to train the agents in such a way that the pass the ball to each other.
+When an agent drops the ball it receives a negative reward of -0.01.
+If an agent can pass the ball over the net the agent receives a positive reward of +0.1.
+Therefore, the rewards are better the longer the agents play and pass the ball over the net to each other.
 
+The environment vectors have the following dimensions for each agent:
+- State vector size: 3 * 8 = 24 (3 frames of 8 observations stacked)
+- Action vector size: 2
+
+Therefore, the global view of the environment has a state vector of size 48 and an action vector of size 4.
+
+After each episode the scores of each agent are summed up and the maximum of these two values is taken as episode score.
+In order to solve the environment the score as described above over 100 episodes has the to be higher than 0.5 in average.
+
+For this exercise it is a requirement that the agents utilize the [MADDPG](MADDPG_paper) architecture which is the multiagent version of [DDPG](DDPG_paper).
+
+[DDPG_paper]: https://arxiv.org/pdf/1509.02971v6.pdf
+[MADDPG_paper]: https://arxiv.org/pdf/1706.02275v4.pdf
 
 ### Dependencies
 
@@ -22,6 +40,8 @@ The resulting file structure should look like shown below:
 │        ├── Tennis_Data
 │        ├── Tennis.x86
 │        └── Tennis.x86_64
+├── src
+└── ...
 ```
 
 To create a conda environment and install the packages required for this repository run the following command:
@@ -31,7 +51,7 @@ conda env create --file requirements.yaml
 
 This conda environment has to be activated with the following command:
 ```bash
-conda activate kalteneger_p3_collaborative-competition
+conda activate udacity_drlnd_p3
 ```
 
 With the active conda environment and the installed dependencies the preparation to run the code is completed.
@@ -50,7 +70,9 @@ To code provided in this repository has three operation modes:
   The results of each hyperparameter combination are shown and finally the combination solving the environment after the least steps with the highest score is listed.
   The graph showing the scores of the best training with the best hyperparameter set is stored in `tuning.png`.
 - `train`: training the agent, the agent is trained with the hyperparameters set in the file `hyperparameters.py` in the ordered dict.
-  The graph for the score and the agent state are stored in `training.png` and `continuous-control.pth`.
+  The graph for the score and the agent state are stored in `training.png` and `collaborative-competition.pth`.
+- `show`: showing the operation of the trained agents.
+   The simulation is started with visualization and the trained agent is operating in the environment.
 
 To start the program the command could look like:
 ```bash

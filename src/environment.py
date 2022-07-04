@@ -53,23 +53,22 @@ class Environment:
         """
         return self._states
 
-    def step(self, actions: [Tensor], brain: BrainParameters = None) -> Tuple[List[Tensor], List[Tensor], List[Tensor]]:
+    def step(self, actions: List[Tensor], brain: BrainParameters = None) -> Tuple[List[Tensor], List[Tensor], List[Tensor]]:
         """
         function to make a step in the environment
         :param actions: action for the agent
         :param brain: brain for which will execute the actions
-        :return: state (for all agents), rewards (for all agents), dones (for all agents) following the execution of the action
+        :return: rewards (for all agents), dones (for all agents) and state (for all agents) following the execution of the action
         """
         brain = brain if brain is not None else self._default_brain
 
-        actions = [action_value for action in actions for action_value in action.tolist()]
+        actions = [action.tolist() for action in actions]
 
         info = self._environment.step(actions)[brain.brain_name]
 
-        i_range = range(self._number_of_agents)
-        rewards: [Tensor] = [torch.tensor([info.rewards[i]], dtype=torch.float) for i in i_range]
-        dones: [Tensor] = [torch.tensor([info.local_done[i]], dtype=torch.bool) for i in i_range]
-        states: [Tensor] = [torch.tensor(info.vector_observations[i], dtype=torch.float) for i in i_range]
+        rewards: [Tensor] = [torch.tensor(reward, dtype=torch.float).reshape(1) for reward in info.rewards]
+        dones: [Tensor] = [torch.tensor(local_done, dtype=torch.bool).reshape(1) for local_done in info.local_done]
+        states: [Tensor] = [torch.tensor(state, dtype=torch.float) for state in info.vector_observations]
 
         self._states = states
 
