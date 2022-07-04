@@ -1,31 +1,47 @@
 #!/usr/bin/env python3
 
+import typing
 import torch
 
 from collections import OrderedDict
+from torch import device
 from torch import Tensor
+from typing import Dict
 from typing import List
 
 from src.agent import Agent
 from src.networks.network import Network
 
+# required for typehint Self
+Self = typing.TypeVar("Self", bound="AgentGroup")
+
 
 class AgentGroup:
 
     def __init__(self,
-                 device: torch.device,
-                 agents: int,
-                 state_size: int,
-                 action_size: int,
-                 hyperparameters: OrderedDict):
-        self._device: torch.device = device
-        self._state_size = state_size
-        self._action_size = action_size
-        self._agents_number = agents
-        self._agents: List[Agent] = [self.create_agent(hyperparameters=hyperparameters) for _ in range(self._agents_number)]
-        self._tau = hyperparameters["tau"]
-        self._discount = hyperparameters["discount"]
-        self._loss_function = torch.nn.MSELoss()
+                 device: torch.device = None,
+                 agents: int = None,
+                 state_size: int = None,
+                 action_size: int = None,
+                 hyperparameters: OrderedDict = None):
+
+        # agent group created from hyperparameters
+        if device is not None and \
+           agents is not None and \
+           state_size is not None and \
+           action_size is not None and \
+           hyperparameters is not None:
+            self._device: torch.device = device
+            self._state_size = state_size
+            self._action_size = action_size
+            self._agents_number = agents
+            self._agents: List[Agent] = [self.create_agent(hyperparameters=hyperparameters) for _ in range(self._agents_number)]
+            self._tau = hyperparameters["tau"]
+            self._discount = hyperparameters["discount"]
+            self._loss_function = torch.nn.MSELoss()
+        # agent group created from checkpoint
+        else:
+            self._agents = []
 
     def create_agent(self, hyperparameters: OrderedDict) -> Agent:
         return Agent(device=self._device,
@@ -79,7 +95,8 @@ class AgentGroup:
             q_targets_next = agent.target_critic(global_next_state, global_target_action_prediction)
 
             q_targets = local_rewards[own_index] + (self._discount * q_targets_next * (1 - local_dones[own_index]))
-            # q_targets = global_reward + (gamma * q_targets_next * (1 - global_done))
+            # Note: the following line leads to broadcasting
+            # q_targets = global_reward + (self._discount * q_targets_next * (1 - global_done))
 
             q_expected = agent.critic(global_state, global_action)
 
@@ -102,3 +119,19 @@ class AgentGroup:
             # ----------------------- update target networks ----------------------- #
             Network.soft_update(source_network=agent.critic, target_network=agent.target_critic, tau=self._tau)
             Network.soft_update(source_network=agent.actor, target_network=agent.target_actor, tau=self._tau)
+
+    def __len__(self):
+        return len(self._agents)
+
+    def to_checkpoint_dict(self) -> Dict:
+        checkpoint_dict = {}
+        for agent_index, agent in enumerate(self._agents):
+            checkpoint_dict["agent_{}".format(agent_index)] = agent.to_checkpoint_dict()
+        return checkpoint_dict
+
+    @staticmethod
+    def from_checkpoint_dict(checkpoint_dict: Dict, device: device) -> Self:
+        agent_group = AgentGroup(device=device)
+        for key in checkpoint_dict.keys():
+            agent_group._agents.append(Agent.from_checkpoint_dict(checkpoint=checkpoint_dict[key], device=device))
+        return agent_group

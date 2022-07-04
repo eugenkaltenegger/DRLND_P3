@@ -1,4 +1,4 @@
-name: kaltenegger_p3_collaborative-competition
+name: udacity_drlnd_p3
 channels:
   - defaults
   - pytorch

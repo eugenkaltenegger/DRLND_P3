@@ -24,7 +24,8 @@ class Actor(Network):
                  activation_function: torch.nn.Module,
                  output_function: torch.nn.Module) -> None:
         super(Actor, self).__init__()
-        self.seed = torch.manual_seed(seed)
+        self.seed_string = seed
+        self.seed = torch.manual_seed(self.seed_string)
 
         self.state_size = state_size
         self.action_size = action_size
@@ -50,15 +51,17 @@ class Actor(Network):
         if state.dim() == 1:
             state = torch.unsqueeze(state, 0)
 
-        state = self.activation_function(self.fc1(state))
-        state = self.activation_function(self.fc2(state))
-        state = self.activation_function(self.fc3(state))
+        x = state
+        x = self.activation_function(self.fc1(x))
+        x = self.activation_function(self.fc2(x))
+        x = self.fc3(x)
 
         if self.output_function is None:
-            return state
+            return x
 
         if self.output_function is not None:
-            return self.output_function(state)
+            x = self.output_function(x)
+            return x
 
     @staticmethod
     def hidden_init(layer: torch.nn.Linear) -> Tuple[float, float]:
@@ -71,7 +74,7 @@ class Actor(Network):
         function to export a network to the network parameters (as dict)
         :return: the network parameters (as dict)
         """
-        return {"seed": self.seed,
+        return {"seed": self.seed_string,
                 "input_size": self.state_size,
                 "output_size": self.action_size,
                 "hidden_layers": self.layers,

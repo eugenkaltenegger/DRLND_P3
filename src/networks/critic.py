@@ -24,7 +24,14 @@ class Critic(Network):
                  activation_function: torch.nn.Module,
                  output_function: torch.nn.Module):
         super(Critic, self).__init__()
-        self.seed = torch.manual_seed(seed)
+        self.seed_string = seed
+        self.seed = torch.manual_seed(self.seed_string)
+
+        self.state_size = state_size
+        self.action_size = action_size
+        self.layers = layers
+        self.activation_function_name = activation_function
+        self.output_function_name = output_function
 
         self.activation_function = activation_function()
         self.output_function = output_function() if output_function is not None else None
@@ -49,11 +56,19 @@ class Critic(Network):
 
         state = torch.cat((state, action), dim=1)
 
-        state = self.activation_function(self.fc1(state))
-        state = self.bn1(state)
-        state = self.activation_function(self.fc2(state))
+        x = state
+        x = self.activation_function(self.fc1(x))
+        x = self.bn1(x)
+        x = self.activation_function(self.fc2(x))
+        # x = self.bn2(x)
+        x = self.fc3(x)
 
-        return self.fc3(state)
+        if self.output_function is None:
+            return x
+
+        if self.output_function is not None:
+            x = self.output_function(x)
+            return x
 
     @staticmethod
     def hidden_init(layer: torch.nn.Linear) -> Tuple[float, float]:
@@ -66,7 +81,7 @@ class Critic(Network):
         function to export a network to the network parameters (as dict)
         :return: the network parameters (as dict)
         """
-        return {"seed": self.seed,
+        return {"seed": self.seed_string,
                 "input_size": self.state_size,
                 "output_size": self.action_size,
                 "hidden_layers": self.layers,
